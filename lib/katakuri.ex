@@ -1,0 +1,2 @@
+defmodule Katakuri do
+end
