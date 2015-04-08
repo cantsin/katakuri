@@ -25,6 +25,9 @@ defmodule Katakuri.Mixfile do
   #
   # Type `mix help deps` for more examples and options
   defp deps do
-    []
+    [{:websocket_client, github: "jeremyong/websocket_client"},
+     {:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1"},
+     {:httpotion, "~> 2.0.0"},
+    ]
   end
 end
