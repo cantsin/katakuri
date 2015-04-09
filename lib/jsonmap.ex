@@ -6,7 +6,8 @@ defmodule JSONMap do
           {key, value} = tuple
           Map.put(acc, String.to_atom(key), to_map(value))
         end)
-      l when is_list(l) -> [to_map(l)]
+      [_|_] ->
+        Enum.map(list, &to_map(&1))
       _ -> list
     end
   end

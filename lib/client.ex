@@ -9,8 +9,8 @@ defmodule Client do
   def init(info, socket) do
     state = %{raw: info,
               socket: socket,
-              users: process_users(info[:users]),
-              channels: process_channels(info[:channels])}
+              users: process_users(info.users),
+              channels: process_channels(info.channels)}
     IO.inspect state.users
     IO.inspect state.channels
     {:ok, state}
