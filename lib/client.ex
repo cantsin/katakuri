@@ -62,11 +62,13 @@ defmodule Client do
 
     if event.type == "message" do
       # transform any ids to the associated name.
-      matches = Regex.scan(~r/<(@[^>]+)>/, event.text)
-      {_, line} = Enum.map_reduce(matches, event.text, fn(match, acc) ->
+      edited = Map.has_key? event, :message
+      text = if edited do event.message.text else event.text end
+      matches = Regex.scan(~r/<@([^>]+)>/, text)
+      {_, line} = Enum.map_reduce(matches, text, fn(match, acc) ->
         [full, id] = match
         {:ok, item} = find_by_id(state.users ++ state.channels, id)
-        {id, String.replace(acc, full, item.name)}
+        {id, String.replace(acc, full, "@" <> item.name)}
       end)
 
       IO.puts line
