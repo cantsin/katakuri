@@ -1,12 +1,24 @@
 defmodule Client do
   @behaviour :websocket_client_handler
+  @moduledoc "Automatically update users and channels for a given Slack."
 
-  def init(state, socket) do
+  require Record
+  Record.defrecord :user, [:id, :name, :status, :presence]
+  Record.defrecord :channel, [:id, :name, :is_archived]
+
+  def init(info, socket) do
+    state = %{raw: info,
+              socket: socket,
+              users: process_users(info[:users]),
+              channels: process_channels(info[:channels])}
+    IO.inspect state.users
+    IO.inspect state.channels
     {:ok, state}
   end
 
   def websocket_handle({:text, message}, _connection, state) do
-    IO.puts message
+    event = message |> :jsx.decode |> JSONMap.to_map
+    IO.inspect event
     {:ok, state}
   end
 
@@ -18,7 +30,20 @@ defmodule Client do
     {:ok, state}
   end
 
-  def websocket_terminate(reason, _connection, state) do
+  def websocket_terminate(reason, _connection, _state) do
+    IO.puts "terminated: " <> reason
     :ok
+  end
+
+  defp process_users(users) do
+    Enum.map(users, fn u ->
+      user(id: u.id, name: u.name, status: u.status, presence: u.presence)
+    end)
+  end
+
+  defp process_channels(channels) do
+    Enum.map(channels, fn c ->
+      channel(id: c.id, name: c.name, is_archived: c.is_archived)
+    end)
   end
 end
