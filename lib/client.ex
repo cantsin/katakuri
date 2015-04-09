@@ -21,6 +21,15 @@ defmodule Client do
 
   def websocket_handle({:text, message}, _connection, state) do
     event = message |> :jsx.decode |> JSONMap.to_map
+    # Erlang/Elixir does not allow introspection of private methods. Pity.
+    case event.type do
+      "presence_change" ->
+        result = update_id(state.users, event.user, %User{presence: event.presence})
+        IO.puts "presence change"
+        IO.inspect result
+      _ ->
+    end
+
     IO.inspect event
     {:ok, state}
   end
@@ -36,6 +45,32 @@ defmodule Client do
   def websocket_terminate(reason, _connection, _state) do
     IO.puts "terminated: " <> reason
     :ok
+  end
+
+  defp update_id(what, id, attrs) do
+    Enum.map(what, fn item ->
+      if item.id == id do
+        # a bit convoluted. basically only override when attrs has nil values
+        Map.merge(attrs, item, fn(_k, v1, v2) ->
+          if is_nil v1 do
+            v2
+          else
+            v1
+          end
+        end)
+      else
+        item
+      end
+    end)
+  end
+
+  def find_by_id(what, id) do
+    result = Enum.find(what, fn x -> x.id == id end)
+    if is_nil result do
+      {:error, "No such id."}
+    else
+      {:ok, result}
+    end
   end
 
   defp process_users(users) do
