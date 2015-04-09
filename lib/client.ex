@@ -11,7 +11,7 @@ defmodule Client do
   end
 
   def init(info, socket) do
-    state = %{raw: info,
+    state = %{#raw: info,
               socket: socket,
               users: process_users(info.users),
               channels: process_channels(info.channels)}
@@ -53,14 +53,25 @@ defmodule Client do
                                       is_archived: false}
                    state.channels ++ [channel]
                  "channel_deleted" ->
-                   channel = find_by_id(state.channels, event.channel)
+                   {:ok, channel} = find_by_id(state.channels, event.channel)
                    List.delete(state.channels, channel)
                  _ ->
                    state.channels
                end
     state = Map.put(state, :channels, channels)
 
-    IO.inspect state
+    if event.type == "message" do
+      # transform any ids to the associated name.
+      matches = Regex.scan(~r/<(@[^>]+)>/, event.text)
+      {_, line} = Enum.map_reduce(matches, event.text, fn(match, acc) ->
+        [full, id] = match
+        {:ok, item} = find_by_id(state.users ++ state.channels, id)
+        {id, String.replace(acc, full, item.name)}
+      end)
+
+      IO.puts line
+      # do something with line ...
+    end
 
     {:ok, state}
   end
