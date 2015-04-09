@@ -26,21 +26,43 @@ defmodule Client do
 
     # Erlang/Elixir does not allow introspection of private methods. Pity.
     users = case event.type do
-      "presence_change" ->
-        attrs = %User{presence: event.presence}
-        update_id(state.users, event.user, attrs)
-      "user_change" ->
-        attrs = %User{name: event.user.name, status: event.user.status}
-        update_id(state.users, event.user.id, attrs)
-      _ -> state.users
-    end
+              "presence_change" ->
+                attrs = %User{presence: event.presence}
+                update_id(state.users, event.user, attrs)
+              "user_change" ->
+                attrs = %User{name: event.user.name, status: event.user.status}
+                update_id(state.users, event.user.id, attrs)
+              _ ->
+                state.users
+            end
+    state = Map.put(state, :users, users)
 
-    # TODO for channels:
-    # channel_name, channel_archive, channel_unarchive, channel_created, channel_deleted
+    channels = case event.type do
+                 "channel_rename" ->
+                   attrs = %Channel{name: event.channel.name}
+                   update_id(state.channels, event.channel.id, attrs)
+                 "channel_archive" ->
+                   attrs = %Channel{is_archived: true}
+                   update_id(state.channels, event.channel, attrs)
+                 "channel_unarchive" ->
+                   attrs = %Channel{is_archived: false}
+                   update_id(state.channels, event.channel, attrs)
+                 "channel_created" ->
+                   channel = %Channel{id: event.channel.id,
+                                      name: event.channel.name,
+                                      is_archived: false}
+                   state.channels ++ [channel]
+                 "channel_deleted" ->
+                   channel = find_by_id(state.channels, event.channel)
+                   List.delete(state.channels, channel)
+                 _ ->
+                   state.channels
+               end
+    state = Map.put(state, :channels, channels)
 
-    IO.inspect users
+    IO.inspect state
 
-    {:ok, %{state | :users => users}}
+    {:ok, state}
   end
 
   def websocket_handle({:ping, data}, _connection, state) do
