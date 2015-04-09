@@ -2,6 +2,7 @@ defmodule Client do
   @behaviour :websocket_client_handler
   @moduledoc "Automatically update users and channels for a given Slack."
 
+  # Assume that id never changes. This may very well be wrong.
   defmodule User do
     defstruct [:id, :name, :status, :presence]
   end
@@ -21,17 +22,25 @@ defmodule Client do
 
   def websocket_handle({:text, message}, _connection, state) do
     event = message |> :jsx.decode |> JSONMap.to_map
+    IO.inspect event
+
     # Erlang/Elixir does not allow introspection of private methods. Pity.
-    case event.type do
+    users = case event.type do
       "presence_change" ->
-        result = update_id(state.users, event.user, %User{presence: event.presence})
-        IO.puts "presence change"
-        IO.inspect result
-      _ ->
+        attrs = %User{presence: event.presence}
+        update_id(state.users, event.user, attrs)
+      "user_change" ->
+        attrs = %User{name: event.user.name, status: event.user.status}
+        update_id(state.users, event.user.id, attrs)
+      _ -> state.users
     end
 
-    IO.inspect event
-    {:ok, state}
+    # TODO for channels:
+    # channel_name, channel_archive, channel_unarchive, channel_created, channel_deleted
+
+    IO.inspect users
+
+    {:ok, %{state | :users => users}}
   end
 
   def websocket_handle({:ping, data}, _connection, state) do
