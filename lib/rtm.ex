@@ -7,9 +7,9 @@ defmodule Rtm do
     result = response.body |> to_string |> :jsx.decode |> JSONMap.to_map
     %{ok: validated} = result
     if validated do
-      Map.get(result, :url)
+      {:ok, result[:url]}
     else
-      exit "Token is incorrect."
+      {:error, "Token is incorrect."}
     end
   end
 end
