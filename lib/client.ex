@@ -14,15 +14,24 @@ defmodule Client do
     state = %{#raw: info,
               socket: socket,
               users: process_users(info.users),
-              channels: process_channels(info.channels)}
+              channels: process_channels(info.channels),
+              count: 0}
     IO.inspect state.users
     IO.inspect state.channels
+    channel = List.first state.channels
+    send_message(state, channel.id, "Greetings.")
     {:ok, state}
   end
 
   def websocket_handle({:text, message}, _connection, state) do
     event = message |> :jsx.decode |> JSONMap.to_map
     IO.inspect event
+
+    # Process a response.
+    if Map.has_key? event, :reply_to do
+      state = Map.put(state, :count, state.count + 1)
+      event = Map.put(event, :type, "response")
+    end
 
     # Erlang/Elixir does not allow introspection of private methods. Pity.
     users = case event.type do
@@ -89,6 +98,15 @@ defmodule Client do
   def websocket_terminate(reason, _connection, _state) do
     IO.puts "terminated: " <> reason
     :ok
+  end
+
+  def send_message(state, channel, text) do
+    message = [{:id, state.count},
+               {:type, "message"},
+               {:channel, channel},
+               {:text, text}]
+    raw = :jsx.encode message
+    :websocket_client.send({:text, raw}, state.socket)
   end
 
   defp update_id(what, id, attrs) do
