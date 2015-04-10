@@ -2,21 +2,14 @@ defmodule Client do
   @behaviour :websocket_client_handler
   @moduledoc "Automatically update users and channels for a given Slack."
 
-  # Assume that id never changes. This may very well be wrong.
-  defmodule User do
-    defstruct [:id, :name, :status, :presence]
-  end
-
-  defmodule Channel do
-    defstruct [:id, :name, :is_archived]
-  end
-
   # Our abstraction around a Slack message.
   defmodule Message do
     defstruct [:channel, :user, :ts, :text, :edited]
   end
 
   def init([info, modules], socket) do
+    Slack.start_link()
+    Slack.set_socket(socket)
     state = %{#raw: info,
               modules: modules,
               socket: socket,
@@ -26,7 +19,7 @@ defmodule Client do
     IO.inspect state.users
     IO.inspect state.channels
     channel = List.first state.channels
-    send_message(state, channel.id, "Greetings.")
+    Slack.send_message(channel.id, "Greetings.")
     # initialize modules.
     Enum.each(state.modules, fn m -> m.start() end)
     {:ok, state}
@@ -34,6 +27,8 @@ defmodule Client do
 
   # Too bad Erlang/Elixir does not allow introspection of private
   # methods. Would make this a bit cleaner.
+  #
+  # Assume that id never changes. This may very well be wrong.
   def websocket_handle({:text, message}, _connection, state) do
     event = message |> :jsx.decode |> JSONMap.to_map
     IO.inspect event
@@ -46,10 +41,10 @@ defmodule Client do
 
     users = case event.type do
               "presence_change" ->
-                attrs = %User{presence: event.presence}
+                attrs = %Slack.User{presence: event.presence}
                 update_id(state.users, event.user, attrs)
               "user_change" ->
-                attrs = %User{name: event.user.name, status: event.user.status}
+                attrs = %Slack.User{name: event.user.name, status: event.user.status}
                 update_id(state.users, event.user.id, attrs)
               _ ->
                 state.users
@@ -58,16 +53,16 @@ defmodule Client do
 
     channels = case event.type do
                  "channel_rename" ->
-                   attrs = %Channel{name: event.channel.name}
+                   attrs = %Slack.Channel{name: event.channel.name}
                    update_id(state.channels, event.channel.id, attrs)
                  "channel_archive" ->
-                   attrs = %Channel{is_archived: true}
+                   attrs = %Slack.Channel{is_archived: true}
                    update_id(state.channels, event.channel, attrs)
                  "channel_unarchive" ->
-                   attrs = %Channel{is_archived: false}
+                   attrs = %Slack.Channel{is_archived: false}
                    update_id(state.channels, event.channel, attrs)
                  "channel_created" ->
-                   channel = %Channel{id: event.channel.id,
+                   channel = %Slack.Channel{id: event.channel.id,
                                       name: event.channel.name,
                                       is_archived: false}
                    state.channels ++ [channel]
@@ -95,7 +90,7 @@ defmodule Client do
                          ts: event.ts,
                          text: line,
                          edited: edited}
-      IO.inspect message
+      Enum.each(state.modules, fn m -> m.process(message) end)
     end
 
     {:ok, state}
@@ -112,15 +107,6 @@ defmodule Client do
   def websocket_terminate(reason, _connection, state) do
     Enum.each(state.modules, fn m -> m.stop(reason) end)
     :ok
-  end
-
-  defp send_message(state, channel, text) do
-    message = [{:id, state.count},
-               {:type, "message"},
-               {:channel, channel},
-               {:text, text}]
-    raw = :jsx.encode message
-    :websocket_client.send({:text, raw}, state.socket)
   end
 
   defp update_id(what, id, attrs) do
@@ -151,13 +137,13 @@ defmodule Client do
 
   defp process_users(users) do
     Enum.map(users, fn u ->
-      %User{id: u.id, name: u.name, status: u.status, presence: u.presence}
+      %Slack.User{id: u.id, name: u.name, status: u.status, presence: u.presence}
     end)
   end
 
   defp process_channels(channels) do
     Enum.map(channels, fn c ->
-      %Channel{id: c.id, name: c.name, is_archived: c.is_archived}
+      %Slack.Channel{id: c.id, name: c.name, is_archived: c.is_archived}
     end)
   end
 end
