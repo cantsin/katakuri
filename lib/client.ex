@@ -6,12 +6,19 @@ defmodule Client do
   defmodule User do
     defstruct [:id, :name, :status, :presence]
   end
+
   defmodule Channel do
     defstruct [:id, :name, :is_archived]
   end
 
-  def init(info, socket) do
+  # Our abstraction around a Slack message.
+  defmodule Message do
+    defstruct [:channel, :user, :ts, :text, :edited]
+  end
+
+  def init([info, modules], socket) do
     state = %{#raw: info,
+              modules: modules,
               socket: socket,
               users: process_users(info.users),
               channels: process_channels(info.channels),
@@ -20,9 +27,13 @@ defmodule Client do
     IO.inspect state.channels
     channel = List.first state.channels
     send_message(state, channel.id, "Greetings.")
+    # initialize modules.
+    Enum.each(state.modules, fn m -> m.start() end)
     {:ok, state}
   end
 
+  # Too bad Erlang/Elixir does not allow introspection of private
+  # methods. Would make this a bit cleaner.
   def websocket_handle({:text, message}, _connection, state) do
     event = message |> :jsx.decode |> JSONMap.to_map
     IO.inspect event
@@ -33,7 +44,6 @@ defmodule Client do
       event = Map.put(event, :type, "response")
     end
 
-    # Erlang/Elixir does not allow introspection of private methods. Pity.
     users = case event.type do
               "presence_change" ->
                 attrs = %User{presence: event.presence}
@@ -80,8 +90,12 @@ defmodule Client do
         {id, String.replace(acc, full, "@" <> item.name)}
       end)
 
-      IO.puts line
-      # do something with line ...
+      message = %Message{channel: event.channel,
+                         user: event.user,
+                         ts: event.ts,
+                         text: line,
+                         edited: edited}
+      IO.inspect message
     end
 
     {:ok, state}
@@ -95,12 +109,12 @@ defmodule Client do
     {:ok, state}
   end
 
-  def websocket_terminate(reason, _connection, _state) do
-    IO.puts "terminated: " <> reason
+  def websocket_terminate(reason, _connection, state) do
+    Enum.each(state.modules, fn m -> m.stop(reason) end)
     :ok
   end
 
-  def send_message(state, channel, text) do
+  defp send_message(state, channel, text) do
     message = [{:id, state.count},
                {:type, "message"},
                {:channel, channel},
