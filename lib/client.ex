@@ -14,12 +14,11 @@ defmodule Client do
     process_users(info.users) |> Slack.update_users
     process_channels(info.channels) |> Slack.update_channels
 
-    # Set up state.
+    # Set up our state.
     state = %{modules: modules}
 
     # Initialize modules.
     Enum.each(state.modules, fn m -> m.start() end)
-    IO.puts "done"
 
     {:ok, state}
   end
@@ -43,27 +42,10 @@ defmodule Client do
       "channel_deleted" -> channel_deleted(event) |> Slack.update_channels
       "channel_archive" -> channel_archive(event) |> Slack.update_channels
       "channel_unarchive" -> channel_unarchive(event) |> Slack.update_channels
+      "message" ->
+        message = process_message(event)
+        Enum.each(state.modules, fn m -> m.process(message) end)
       _ ->
-    end
-
-    # Process a message and hand it off to all modules.
-    if event.type == "message" do
-      # transform any ids to the associated name.
-      edited = Map.has_key? event, :message
-      text = if edited do event.message.text else event.text end
-      matches = Regex.scan(~r/<@([^>]+)>/, text)
-      all_items = Slack.get_users() ++ Slack.get_channels()
-      {_, line} = Enum.map_reduce(matches, text, fn(match, acc) ->
-        [full, id] = match
-        {:ok, item} = find_by_id(all_items, id)
-        {id, String.replace(acc, full, "@" <> item.name)}
-      end)
-      message = %Message{channel: event.channel,
-                         user: event.user,
-                         ts: event.ts,
-                         text: line,
-                         edited: edited}
-      Enum.each(state.modules, fn m -> m.process(message) end)
     end
 
     {:ok, state}
@@ -83,9 +65,7 @@ defmodule Client do
   end
 
   defp presence_change(event) do
-    IO.puts "in presence_change"
     users = Slack.get_users()
-    IO.inspect users
     attrs = %Slack.User{presence: event.presence}
     update_id(users, event.user, attrs)
   end
@@ -128,6 +108,38 @@ defmodule Client do
     List.delete(channels, channel)
   end
 
+  defp process_message(event) do
+    # Slack stores references to names/channels by <@id>. Here, we
+    # transform these references to the associated name for ease of
+    # debugging and logging.
+    edited = Map.has_key? event, :message
+    text = if edited do event.message.text else event.text end
+    matches = Regex.scan(~r/<@([^>]+)>/, text)
+    all_items = Slack.get_users() ++ Slack.get_channels()
+    {_, line} = Enum.map_reduce(matches, text, fn(match, acc) ->
+      [full, id] = match
+      {:ok, item} = find_by_id(all_items, id)
+      {id, String.replace(acc, full, "@" <> item.name)}
+    end)
+    %Message{channel: event.channel,
+             user: event.user,
+             ts: event.ts,
+             text: line,
+             edited: edited}
+  end
+
+  defp process_users(users) do
+    Enum.map(users, fn u ->
+      %Slack.User{id: u.id, name: u.name, status: u.status, presence: u.presence}
+    end)
+  end
+
+  defp process_channels(channels) do
+    Enum.map(channels, fn c ->
+      %Slack.Channel{id: c.id, name: c.name, is_archived: c.is_archived}
+    end)
+  end
+
   defp update_id(what, id, attrs) do
     Enum.map(what, fn item ->
       if item.id == id do
@@ -152,17 +164,5 @@ defmodule Client do
     else
       {:ok, result}
     end
-  end
-
-  defp process_users(users) do
-    Enum.map(users, fn u ->
-      %Slack.User{id: u.id, name: u.name, status: u.status, presence: u.presence}
-    end)
-  end
-
-  defp process_channels(channels) do
-    Enum.map(channels, fn c ->
-      %Slack.Channel{id: c.id, name: c.name, is_archived: c.is_archived}
-    end)
   end
 end
