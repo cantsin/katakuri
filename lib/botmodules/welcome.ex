@@ -1,6 +1,6 @@
 defmodule BotWelcome do
-
   @behaviour BotModule
+  @moduledoc "Emit a greeting when we first join Slack."
 
   def start() do
     # TODO find main channel
