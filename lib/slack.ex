@@ -1,6 +1,7 @@
 defmodule Slack do
   @moduledoc "Agent to retain information about this Slack."
 
+  # Here, we assume that id never changes. This may very well be wrong.
   defmodule User do
     defstruct [:id, :name, :status, :presence]
   end
@@ -22,16 +23,16 @@ defmodule Slack do
     Agent.update(__MODULE__, &Map.put(&1, :users, users))
   end
 
-  def get_users() do
-    Agent.update(__MODULE__, &Map.get(&1, :users))
+  def get_users do
+    Agent.get(__MODULE__, &Map.get(&1, :users))
   end
 
   def update_channels(channels) do
     Agent.update(__MODULE__, &Map.put(&1, :channels, channels))
   end
 
-  def get_channels() do
-    Agent.update(__MODULE__, &Map.get(&1, :channels))
+  def get_channels do
+    Agent.get(__MODULE__, &Map.get(&1, :channels))
   end
 
   def send_message(channel, text) do

@@ -8,83 +8,56 @@ defmodule Client do
   end
 
   def init([info, modules], socket) do
+    # Set up the Slack agent.
     Slack.start_link()
     Slack.set_socket(socket)
-    state = %{#raw: info,
-              modules: modules,
-              socket: socket,
-              users: process_users(info.users),
-              channels: process_channels(info.channels),
-              count: 0}
-    IO.inspect state.users
-    IO.inspect state.channels
-    channel = List.first state.channels
-    Slack.send_message(channel.id, "Greetings.")
-    # initialize modules.
+    process_users(info.users) |> Slack.update_users
+    process_channels(info.channels) |> Slack.update_channels
+
+    # Set up state.
+    state = %{modules: modules}
+
+    # Initialize modules.
     Enum.each(state.modules, fn m -> m.start() end)
+    IO.puts "done"
+
     {:ok, state}
   end
 
-  # Too bad Erlang/Elixir does not allow introspection of private
-  # methods. Would make this a bit cleaner.
-  #
-  # Assume that id never changes. This may very well be wrong.
   def websocket_handle({:text, message}, _connection, state) do
     event = message |> :jsx.decode |> JSONMap.to_map
     IO.inspect event
 
     # Process a response.
     if Map.has_key? event, :reply_to do
-      state = Map.put(state, :count, state.count + 1)
       event = Map.put(event, :type, "response")
     end
 
-    users = case event.type do
-              "presence_change" ->
-                attrs = %Slack.User{presence: event.presence}
-                update_id(state.users, event.user, attrs)
-              "user_change" ->
-                attrs = %Slack.User{name: event.user.name, status: event.user.status}
-                update_id(state.users, event.user.id, attrs)
-              _ ->
-                state.users
-            end
-    state = Map.put(state, :users, users)
+    # Too bad Erlang/Elixir does not allow introspection of private
+    # methods. Would make this a bit cleaner.
+    case event.type do
+      "user_change" -> user_change(event) |> Slack.update_users
+      "presence_change" -> presence_change(event) |> Slack.update_users
+      "channel_rename" -> channel_rename(event) |> Slack.update_channels
+      "channel_created" -> channel_created(event) |> Slack.update_channels
+      "channel_deleted" -> channel_deleted(event) |> Slack.update_channels
+      "channel_archive" -> channel_archive(event) |> Slack.update_channels
+      "channel_unarchive" -> channel_unarchive(event) |> Slack.update_channels
+      _ ->
+    end
 
-    channels = case event.type do
-                 "channel_rename" ->
-                   attrs = %Slack.Channel{name: event.channel.name}
-                   update_id(state.channels, event.channel.id, attrs)
-                 "channel_archive" ->
-                   attrs = %Slack.Channel{is_archived: true}
-                   update_id(state.channels, event.channel, attrs)
-                 "channel_unarchive" ->
-                   attrs = %Slack.Channel{is_archived: false}
-                   update_id(state.channels, event.channel, attrs)
-                 "channel_created" ->
-                   channel = %Slack.Channel{id: event.channel.id,
-                                      name: event.channel.name,
-                                      is_archived: false}
-                   state.channels ++ [channel]
-                 "channel_deleted" ->
-                   {:ok, channel} = find_by_id(state.channels, event.channel)
-                   List.delete(state.channels, channel)
-                 _ ->
-                   state.channels
-               end
-    state = Map.put(state, :channels, channels)
-
+    # Process a message and hand it off to all modules.
     if event.type == "message" do
       # transform any ids to the associated name.
       edited = Map.has_key? event, :message
       text = if edited do event.message.text else event.text end
       matches = Regex.scan(~r/<@([^>]+)>/, text)
+      all_items = Slack.get_users() ++ Slack.get_channels()
       {_, line} = Enum.map_reduce(matches, text, fn(match, acc) ->
         [full, id] = match
-        {:ok, item} = find_by_id(state.users ++ state.channels, id)
+        {:ok, item} = find_by_id(all_items, id)
         {id, String.replace(acc, full, "@" <> item.name)}
       end)
-
       message = %Message{channel: event.channel,
                          user: event.user,
                          ts: event.ts,
@@ -107,6 +80,52 @@ defmodule Client do
   def websocket_terminate(reason, _connection, state) do
     Enum.each(state.modules, fn m -> m.stop(reason) end)
     :ok
+  end
+
+  defp presence_change(event) do
+    IO.puts "in presence_change"
+    users = Slack.get_users()
+    IO.inspect users
+    attrs = %Slack.User{presence: event.presence}
+    update_id(users, event.user, attrs)
+  end
+
+  defp user_change(event) do
+    users = Slack.get_users()
+    attrs = %Slack.User{name: event.user.name, status: event.user.status}
+    update_id(users, event.user.id, attrs)
+  end
+
+  defp channel_rename(event) do
+    channels = Slack.get_channels()
+    attrs = %Slack.Channel{name: event.channel.name}
+    update_id(channels, event.channel.id, attrs)
+  end
+
+  defp channel_archive(event) do
+    channels = Slack.get_channels()
+    attrs = %Slack.Channel{is_archived: true}
+    update_id(channels, event.channel, attrs)
+  end
+
+  defp channel_unarchive(event) do
+    channels = Slack.get_channels()
+    attrs = %Slack.Channel{is_archived: false}
+    update_id(channels, event.channel, attrs)
+  end
+
+  defp channel_created(event) do
+    channels = Slack.get_channels()
+    channel = %Slack.Channel{id: event.channel.id,
+                             name: event.channel.name,
+                             is_archived: false}
+    channels ++ [channel]
+  end
+
+  defp channel_deleted(event) do
+    channels = Slack.get_channels()
+    {:ok, channel} = find_by_id(channels, event.channel)
+    List.delete(channels, channel)
   end
 
   defp update_id(what, id, attrs) do
