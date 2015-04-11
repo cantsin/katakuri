@@ -4,7 +4,7 @@ defmodule Client do
 
   # Our abstraction around a Slack message.
   defmodule Message do
-    defstruct [:channel, :user, :ts, :text, :edited]
+    defstruct [:channel, :user, :ts, :text, :edited, :raw]
   end
 
   def init([info, modules], socket) do
@@ -32,7 +32,7 @@ defmodule Client do
 
   def websocket_handle({:text, message}, _connection, state) do
     event = message |> :jsx.decode |> JSONMap.to_map
-    IO.inspect event
+    #IO.inspect event
 
     # Reconfigure an acknowledged reply from the bot to be something
     # other than message, which it is not.
@@ -123,17 +123,19 @@ defmodule Client do
     edited = Map.has_key? event, :message
     text = if edited do event.message.text else event.text end
     user = if edited do event.message.user else event.user end
+    username = Dict.get(ids, user)
     matches = Regex.scan(~r/<@([^>]+)>/, text)
-    {_, line} = Enum.map_reduce(matches, text, fn(match, acc) ->
+    {_, text} = Enum.map_reduce(matches, text, fn(match, acc) ->
       [full, id] = match
       name = Dict.get(ids, id)
       {id, String.replace(acc, full, "@" <> name)}
     end)
     %Message{channel: event.channel,
-             user: Dict.get(ids, user),
+             user: username,
              ts: event.ts,
-             text: line,
-             edited: edited}
+             text: text,
+             edited: edited,
+             raw: event}
   end
 
   defp process_users(users) do

@@ -20,7 +20,7 @@ end
 defmodule Katakuri do
   import Supervisor.Spec
 
-  @modules [BotWelcome, BotMotd]
+  @modules [BotWelcome, BotMotd, BotLogger]
 
   def modules, do: @modules
 
