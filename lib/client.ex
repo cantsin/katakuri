@@ -12,11 +12,17 @@ defmodule Client do
     # Set up the Slack agent.
     Slack.start_link()
     Slack.set_socket(socket)
-    process_users(info.users) |> Slack.update_users
-    process_channels(info.channels) |> Slack.update_channels
+
+    users = process_users(info.users)
+    channels = process_channels(info.channels)
+    Slack.update_users users
+    Slack.update_channels channels
 
     # Set up our state.
-    state = %{modules: modules}
+    raw_ids = Enum.map(users ++ channels, fn i -> {i.id, i.name} end)
+    ids = Enum.into(raw_ids, %{})
+    state = %{modules: modules,
+              ids: ids}
 
     # Initialize modules.
     Enum.each(state.modules, fn m -> m.start() end)
@@ -45,7 +51,7 @@ defmodule Client do
       "channel_archive" -> channel_archive(event) |> Slack.update_channels
       "channel_unarchive" -> channel_unarchive(event) |> Slack.update_channels
       "message" ->
-        message = process_message(event)
+        message = process_message(state.ids, event)
         Enum.each(state.modules, fn m -> m.process(message) end)
       _ ->
     end
@@ -110,18 +116,17 @@ defmodule Client do
     List.delete(channels, channel)
   end
 
-  defp process_message(event) do
+  defp process_message(ids, event) do
     # Slack stores references to names/channels by <@id>. Here, we
     # transform these references to the associated name for ease of
     # debugging and logging.
     edited = Map.has_key? event, :message
     text = if edited do event.message.text else event.text end
     matches = Regex.scan(~r/<@([^>]+)>/, text)
-    all_items = Slack.get_users() ++ Slack.get_channels()
     {_, line} = Enum.map_reduce(matches, text, fn(match, acc) ->
       [full, id] = match
-      {:ok, item} = find_by_id(all_items, id)
-      {id, String.replace(acc, full, "@" <> item.name)}
+      name = Dict.get(ids, id)
+      {id, String.replace(acc, full, "@" <> name)}
     end)
     %Message{channel: event.channel,
              user: event.user,
