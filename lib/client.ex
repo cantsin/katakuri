@@ -2,12 +2,15 @@ defmodule Client do
   @behaviour :websocket_client_handler
   @moduledoc "Automatically update users and channels for a given Slack."
 
+  require Logger
+
   # Our abstraction around a Slack message.
   defmodule Message do
     defstruct [:channel, :user, :ts, :text, :edited, :raw]
   end
 
   def init([info, modules], socket) do
+    Logger.info "Slack client started with #{inspect [info, modules]}"
 
     # Set up the Slack agent.
     Slack.start_link()
@@ -31,8 +34,8 @@ defmodule Client do
   end
 
   def websocket_handle({:text, message}, _connection, state) do
+    Logger.info message
     event = message |> :jsx.decode |> JSONMap.to_map
-    #IO.inspect event
 
     # Reconfigure an acknowledged reply from the bot to be something
     # other than message, which it is not.
@@ -53,7 +56,9 @@ defmodule Client do
       "message" ->
         message = process_message(state.ids, event)
         Enum.each(state.modules, fn m -> m.process(message) end)
+      "user_typing" -> () # no-op
       _ ->
+        Logger.error "unknown event type: #{event.type}"
     end
 
     {:ok, state}
@@ -68,6 +73,7 @@ defmodule Client do
   end
 
   def websocket_terminate(reason, _connection, state) do
+    Logger.info "Slack client terminated with reason #{reason}"
     Enum.each(state.modules, fn m -> m.stop(reason) end)
     :ok
   end

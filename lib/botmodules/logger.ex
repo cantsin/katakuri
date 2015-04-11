@@ -2,6 +2,8 @@ defmodule BotLogger do
   @behaviour BotModule
   @moduledoc "Log all messages."
 
+  require Logger
+
   def doc, do: @moduledoc
 
   def start() do
@@ -26,7 +28,9 @@ defmodule BotLogger do
           else
             format_chat(username, line) |> format_edited
           end
-        _ -> "unknown " <> line
+        _ ->
+          "unknown " <> line
+          Logger.error "could not format message"
       end
     else
       format_chat(username, line)
