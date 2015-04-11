@@ -1,5 +1,9 @@
-%{"httpotion": {:hex, :httpotion, "2.0.0"},
+%{"decimal": {:hex, :decimal, "1.1.0"},
+  "httpotion": {:hex, :httpotion, "2.0.0"},
   "ibrowse": {:git, "git://github.com/cmullaparthi/ibrowse.git", "d2e369ff42666c3574b8b7ec26f69027895c4d94", [tag: "v4.1.1"]},
   "jsx": {:hex, :jsx, "2.5.2"},
+  "logger_file_backend": {:git, "git://github.com/onkel-dirtus/logger_file_backend.git", "2643f311072d98516551ceb6456fd3ad32ac3db4", []},
+  "loggerfilebackend": {:git, "git://github.com/onkel-dirtus/logger_file_backend.git", "2643f311072d98516551ceb6456fd3ad32ac3db4", []},
   "mixunit": {:hex, :mixunit, "0.9.1"},
+  "postgrex": {:hex, :postgrex, "0.8.1"},
   "websocket_client": {:git, "git://github.com/jeremyong/websocket_client.git", "f465f229958293949e4a192bea65a7e47bb2f762", []}}

@@ -17,6 +17,8 @@ defmodule Katakuri.Mixfile do
      {:ibrowse, github: "cmullaparthi/ibrowse", tag: "v4.1.1"},
      {:httpotion, "~> 2.0.0"},
      {:jsx, "~> 2.5.2"},
+     {:postgrex, "~> 0.8"},
+     {:logger_file_backend, github: "onkel-dirtus/logger_file_backend"}
     ]
   end
 end
