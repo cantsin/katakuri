@@ -20,7 +20,7 @@ end
 defmodule Katakuri do
   import Supervisor.Spec
 
-  @modules [BotWelcome]
+  @modules [BotWelcome, BotMotd]
 
   def init(token) do
     children = [
