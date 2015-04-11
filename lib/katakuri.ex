@@ -22,6 +22,8 @@ defmodule Katakuri do
 
   @modules [BotWelcome, BotMotd]
 
+  def modules, do: @modules
+
   def init(token) do
     children = [
       worker(SlackServer, [[token, @modules]])

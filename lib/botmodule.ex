@@ -1,6 +1,9 @@
 defmodule BotModule do
   use Behaviour
 
+  @doc "Description."
+  defcallback doc() :: String
+
   @doc "Startup."
   defcallback start()
 
