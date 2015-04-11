@@ -122,6 +122,7 @@ defmodule Client do
     # debugging and logging.
     edited = Map.has_key? event, :message
     text = if edited do event.message.text else event.text end
+    user = if edited do event.message.user else event.user end
     matches = Regex.scan(~r/<@([^>]+)>/, text)
     {_, line} = Enum.map_reduce(matches, text, fn(match, acc) ->
       [full, id] = match
@@ -129,7 +130,7 @@ defmodule Client do
       {id, String.replace(acc, full, "@" <> name)}
     end)
     %Message{channel: event.channel,
-             user: event.user,
+             user: Dict.get(ids, user),
              ts: event.ts,
              text: line,
              edited: edited}
