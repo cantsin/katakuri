@@ -8,6 +8,7 @@ defmodule Client do
   end
 
   def init([info, modules], socket) do
+
     # Set up the Slack agent.
     Slack.start_link()
     Slack.set_socket(socket)
@@ -27,7 +28,8 @@ defmodule Client do
     event = message |> :jsx.decode |> JSONMap.to_map
     IO.inspect event
 
-    # Process a response.
+    # Reconfigure an acknowledged reply from the bot to be something
+    # other than message, which it is not.
     if Map.has_key? event, :reply_to do
       event = Map.put(event, :type, "response")
     end
@@ -136,7 +138,11 @@ defmodule Client do
 
   defp process_channels(channels) do
     Enum.map(channels, fn c ->
-      %Slack.Channel{id: c.id, name: c.name, is_archived: c.is_archived}
+      %Slack.Channel{id: c.id,
+                     name: c.name,
+                     is_archived: c.is_archived,
+                     is_general: c.is_general,
+                     is_member: c.is_member}
     end)
   end
 

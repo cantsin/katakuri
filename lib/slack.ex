@@ -7,7 +7,7 @@ defmodule Slack do
   end
 
   defmodule Channel do
-    defstruct [:id, :name, :is_archived]
+    defstruct [:id, :name, :is_archived, :is_general, :is_member]
   end
 
   def start_link do
@@ -33,6 +33,18 @@ defmodule Slack do
 
   def get_channels do
     Agent.get(__MODULE__, &Map.get(&1, :channels))
+  end
+
+  def get_active_channels do
+    Enum.filter(get_channels(), fn channel -> !channel.is_archived end)
+  end
+
+  def get_joined_channels do
+    Enum.filter(get_channels(), fn channel -> channel.is_member end)
+  end
+
+  def get_general_channel do
+    Enum.find(get_channels(), fn channel -> channel.is_general end)
   end
 
   def send_message(channel, text) do
