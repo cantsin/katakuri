@@ -30,7 +30,7 @@ defmodule BotLogger do
           end
         _ ->
           "unknown " <> line
-          Logger.error "could not format message"
+          Logger.error "could not format message from event #{inspect event}"
       end
     else
       format_chat(username, line)
