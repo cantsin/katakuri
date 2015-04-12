@@ -1,10 +1,12 @@
 defmodule SlackServer do
   use GenServer
 
+  @url "https://slack.com/api/rtm.start?token="
+
   def start_link(state) do
     GenServer.start_link(__MODULE__, {}, [name: :katakuri])
     [token, modules] = state
-    {:ok, raw_result} = Rtm.start(token)
+    {:ok, raw_result} = process_token(token)
     {:ok, _} = :websocket_client.start_link(raw_result.url, Client, [raw_result, modules])
   end
 
@@ -14,6 +16,18 @@ defmodule SlackServer do
 
   def handle_cast(_what, state) do
     {:noreply, state}
+  end
+
+  defp process_token(token) do
+    HTTPotion.start
+    response = HTTPotion.get(@url <> token)
+    result = response.body |> to_string |> :jsx.decode |> JSONMap.to_map
+    %{ok: validated} = result
+    if validated do
+      {:ok, result}
+    else
+      {:error, "Token is incorrect."}
+    end
   end
 end
 
