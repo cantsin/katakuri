@@ -21,13 +21,7 @@ defmodule SlackServer do
   defp process_token(token) do
     HTTPotion.start
     response = HTTPotion.get(@url <> token)
-    result = response.body |> to_string |> :jsx.decode |> JSONMap.to_map
-    %{ok: validated} = result
-    if validated do
-      {:ok, result}
-    else
-      {:error, "Token is incorrect."}
-    end
+    Poison.Parser.parse(response.body, keys: :atoms)
   end
 end
 

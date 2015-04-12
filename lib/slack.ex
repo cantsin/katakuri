@@ -52,11 +52,11 @@ defmodule Slack do
       { vars.message_count, Map.put(vars, :message_count, vars.message_count + 1) }
     end)
     socket = Agent.get(__MODULE__, &Map.get(&1, :socket))
-    message = [{:id, message_count},
-               {:type, "message"},
-               {:channel, channel},
-               {:text, text}]
-    raw = :jsx.encode message
+    message = %{id: message_count,
+                type: "message",
+                channel: channel,
+                text: text}
+    {:ok, raw} = Poison.encode message
     :websocket_client.send({:text, raw}, socket)
   end
 end

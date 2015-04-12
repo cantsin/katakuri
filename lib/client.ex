@@ -35,7 +35,7 @@ defmodule Client do
 
   def websocket_handle({:text, message}, _connection, state) do
     Logger.info message
-    event = message |> :jsx.decode |> JSONMap.to_map
+    event = Poison.Parser.parse!(message, keys: :atoms)
 
     # Reconfigure an acknowledged reply from the bot to be something
     # other than message, which it is not.
