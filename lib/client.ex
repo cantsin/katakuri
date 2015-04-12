@@ -57,6 +57,8 @@ defmodule Client do
         message = process_message(state.ids, event)
         Enum.each(state.modules, fn m -> m.process(message) end)
       "user_typing" -> () # no-op
+      "response" -> () # no-op
+      "hello" -> () # no-op
       _ ->
         Logger.error "unknown event type: #{event.type}"
     end
