@@ -10,6 +10,10 @@ defmodule Slack do
     defstruct [:id, :name, :is_archived, :is_general, :is_member]
   end
 
+  defmodule DirectMessage do
+    defstruct [:id, :is_open, :user]
+  end
+
   def start_link do
     Agent.start_link(fn -> Map.new end, name: __MODULE__)
   end
@@ -17,6 +21,14 @@ defmodule Slack do
   def set_socket(socket) do
     Agent.update(__MODULE__, &Map.put(&1, :socket, socket))
     Agent.update(__MODULE__, &Map.put(&1, :message_count, 0))
+  end
+
+  def update_direct_messages(direct_messages) do
+    Agent.update(__MODULE__, &Map.put(&1, :direct_messages, direct_messages))
+  end
+
+  def get_direct_messages do
+    Agent.get(__MODULE__, &Map.get(&1, :direct_messages))
   end
 
   def update_users(users) do

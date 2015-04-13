@@ -18,8 +18,10 @@ defmodule Client do
 
     users = process_users(info.users)
     channels = process_channels(info.channels)
+    direct_messages = process_direct_messages(info.ims)
     Slack.update_users users
     Slack.update_channels channels
+    Slack.update_direct_messages direct_messages
 
     # Set up our state.
     raw_ids = Enum.map(users ++ channels, fn i -> {i.id, i.name} end)
@@ -159,6 +161,12 @@ defmodule Client do
                      is_archived: c.is_archived,
                      is_general: c.is_general,
                      is_member: c.is_member}
+    end)
+  end
+
+  defp process_direct_messages(direct_messages) do
+    Enum.map(direct_messages, fn im ->
+      %Slack.DirectMessage{id: im.id, is_open: im.is_open, user: im.user}
     end)
   end
 
