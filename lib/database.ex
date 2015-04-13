@@ -13,13 +13,16 @@ defmodule SlackDatabase do
     GenServer.start_link(__MODULE__, :ok, [name: :database])
   end
 
-  #Postgrex.Connection.query!(pid, "INSERT INTO messages(id, message) VALUES(1, $1)", [%{test: 5}])
+  def write_message(message) do
+    GenServer.cast(:database, {:write_message, message})
+  end
 
   def handle_call(_what, _from, state) do
     {:reply, :ok, state}
   end
 
-  def handle_cast(_what, state) do
+  def handle_cast({:write_message, message}, state) do
+    Postgrex.Connection.query!(state.db_pid, "INSERT INTO messages(message) VALUES($1)", [message])
     {:noreply, state}
   end
 

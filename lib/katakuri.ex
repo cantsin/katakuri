@@ -34,8 +34,8 @@ defmodule Katakuri do
 
   def init(token) do
     children = [
+      worker(SlackDatabase, [[]]),
       worker(SlackServer, [[token, @modules]]),
-      worker(SlackDatabase, [[]])
     ]
     {:ok, _} = Supervisor.start_link(children, strategy: :one_for_one)
   end

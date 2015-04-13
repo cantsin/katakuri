@@ -11,8 +11,9 @@ defmodule BotLogger do
   end
 
   def process(message) do
+    SlackDatabase.write_message(message.raw)
     line = format_message(message.raw, message.user, message.text)
-    IO.puts line
+    Logger.info line
   end
 
   def format_message(event, username, line) do
