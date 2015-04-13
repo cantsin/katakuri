@@ -1,7 +1,7 @@
 defmodule BotMotd do
   @behaviour BotModule
   @moduledoc "Message of the day. Invoke with !motd"
-  @where 'cygnus-x.net'
+  @where 'djxmmx.net'
 
   def doc, do: @moduledoc
 
