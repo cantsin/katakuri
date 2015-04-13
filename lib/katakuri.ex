@@ -4,7 +4,7 @@ defmodule SlackServer do
   @url "https://slack.com/api/rtm.start?token="
 
   def start_link(state) do
-    GenServer.start_link(__MODULE__, {}, [name: :katakuri])
+    GenServer.start_link(__MODULE__, {}, [name: :server])
     [token, modules] = state
     {:ok, raw_result} = process_token(token)
     {:ok, _} = :websocket_client.start_link(raw_result.url, Client, [raw_result, modules])
@@ -34,7 +34,8 @@ defmodule Katakuri do
 
   def init(token) do
     children = [
-      worker(SlackServer, [[token, @modules]])
+      worker(SlackServer, [[token, @modules]]),
+      worker(SlackDatabase, [[]])
     ]
     {:ok, _} = Supervisor.start_link(children, strategy: :one_for_one)
   end
