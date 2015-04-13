@@ -12,42 +12,50 @@ defmodule BotLogger do
 
   def process(message) do
     SlackDatabase.write_message(message.raw)
-    line = format_message(message.raw, message.user, message.text)
+    line = format_message(message.raw, message.ts, message.user, message.text)
     Logger.info line
   end
 
-  def format_message(event, username, line) do
+  def format_message(event, ts, username, line) do
     if Map.has_key? event, :subtype do
       case event.subtype do
-        "me_message" -> format_me(username, line)
+        "me_message" -> format_me(ts, username, line)
         "message_changed" ->
           if Map.has_key? event.message, :subtype do
             case event.message.subtype do
-              "me_message" -> format_me(username, line) |> format_edited
-              _ -> format_chat(username, line) |> format_edited
+              "me_message" -> format_me(ts, username, line) |> format_edited
+              _ -> format_chat(ts, username, line) |> format_edited
             end
           else
-            format_chat(username, line) |> format_edited
+            format_chat(ts, username, line) |> format_edited
           end
         _ ->
           "unknown " <> line
           Logger.error "could not format message from event #{inspect event}"
       end
     else
-      format_chat(username, line)
+      format_chat(ts, username, line)
     end
   end
 
-  defp format_me(username, line) do
-    "* " <> username <> " " <> line
+  defp format_me(ts, username, line) do
+    format_time(ts) <> " * " <> username <> " " <> line
   end
 
-  defp format_chat(username, line) do
-    username <> ": " <> line
+  defp format_chat(ts, username, line) do
+    format_time(ts) <> " " <> username <> ": " <> line
   end
 
   defp format_edited(line) do
     "[edited] " <> line
+  end
+
+  def format_time(milliseconds) do
+    ms = String.to_float milliseconds
+    basetime = :calendar.datetime_to_gregorian_seconds({{1970,1,1}, {0,0,0}})
+    seconds = basetime + ms |> round
+    {{y, m, d}, {h, min, s}} = :calendar.gregorian_seconds_to_datetime seconds
+    "#{m}-#{d}-#{y} #{h}:#{min}:#{s}"
   end
 
   def stop(_reason) do
