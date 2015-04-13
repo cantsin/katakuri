@@ -1,21 +1,21 @@
 defmodule BotHappiness do
   @behaviour BotModule
-  @moduledoc "Track happiness levels (with anonymized data). !happyme to opt in."
+  @moduledoc "Track happiness levels (with anonymized data). !happyme to opt in. !happystats for anonymized and aggregated statistics."
   @description "Thank you for opting into our happiness survey!
 
 How this works:
 
 - I will randomly PM you once every three days (on average).
-- I will ask you how you are feeling then.
+- I will ask you how you are feeling.
 - Please respond with a number from 1 (very sad) to 5 (very happy).
 
 The scale looks like this:
 
-1: I'm having a terrible, no-good, bad day.
-2: Not one of my better days.
+1: I'm having a terrible, horrible, no-good, very bad day.
+2: Sigh. Today was not one of my better days.
 3: Meh, I'm doing OK.
 4: I'm doing well.
-5: I'm ecstatic, on top of the world!
+5: I'm ecstatic and on top of the world!
 
 Please note that all data is anonymized. But don't just take my word for it -- you may verify the code at https://raw.githubusercontent.com/cantsin/katakuri/master/lib/botmodules/happiness.ex.
 
