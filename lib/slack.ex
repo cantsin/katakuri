@@ -76,4 +76,9 @@ defmodule Slack do
     {:ok, raw} = Poison.encode message
     :websocket_client.send({:text, raw}, socket)
   end
+
+  def send_direct(whom, text) do
+    channel = Enum.find(get_direct_messages, fn im -> im.user == whom end)
+    send_message(channel.id, text)
+  end
 end

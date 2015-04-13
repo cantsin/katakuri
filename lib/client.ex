@@ -6,7 +6,7 @@ defmodule Client do
 
   # Our abstraction around a Slack message.
   defmodule Message do
-    defstruct [:channel, :user, :ts, :text, :edited, :raw]
+    defstruct [:channel, :user, :user_id, :ts, :text, :edited, :raw]
   end
 
   def init([info, modules], socket) do
@@ -142,6 +142,7 @@ defmodule Client do
     end)
     %Message{channel: event.channel,
              user: username,
+             user_id: user,
              ts: event.ts,
              text: text,
              edited: edited,

@@ -32,10 +32,8 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
   def process(message) do
     if Regex.match? ~r/^!happyme/, message.text do
-      # Send a message to the given user.
-      message = @description
-
-      #Slack.send_im(message.raw.user, message)
+      # Send the opt-in message to the given user.
+      Slack.send_direct(message.user_id, @description)
       # check if user is already opt'd in
     end
 
