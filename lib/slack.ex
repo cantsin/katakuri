@@ -52,6 +52,11 @@ defmodule Slack do
       { vars.message_count, Map.put(vars, :message_count, vars.message_count + 1) }
     end)
     socket = Agent.get(__MODULE__, &Map.get(&1, :socket))
+    # Slack imposes certain restrictions on messages, so we'll follow them as well.
+    text = String.replace text, ">", "&gt;"
+    text = String.replace text, "<", "&lt;"
+    text = String.replace text, "&", "&amp;"
+    text = String.slice text, 0..4000
     message = %{id: message_count,
                 type: "message",
                 channel: channel,
