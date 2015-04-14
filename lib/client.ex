@@ -134,7 +134,7 @@ defmodule Client do
     text = if edited do event.message.text else event.text end
     user = if edited do event.message.user else event.user end
     username = Dict.get(ids, user)
-    matches = Regex.scan(~r/<@([^>]+)>/, text)
+    matches = Regex.scan(~r/<@([^>|]+)[>|]/, text)
     {_, text} = Enum.map_reduce(matches, text, fn(match, acc) ->
       [full, id] = match
       name = Dict.get(ids, id)
