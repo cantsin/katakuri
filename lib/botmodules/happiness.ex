@@ -1,3 +1,4 @@
+# inspired by http://begriffs.com/posts/2015-03-15-tracking-joy-at-work.html
 defmodule BotHappiness do
   @behaviour BotModule
   @moduledoc "Track happiness levels (with anonymized data). !happyme to opt in. !happystats for anonymized and aggregated statistics."
@@ -17,7 +18,7 @@ The scale looks like this:
 4: I'm doing well.
 5: I'm ecstatic and on top of the world!
 
-Please note that all data is anonymized. But don't just take my word for it -- you may verify the code at https://raw.githubusercontent.com/cantsin/katakuri/master/lib/botmodules/happiness.ex.
+Please note that all data is anonymized. But don't just take my word for it -- you may verify the code at https://github.com/cantsin/katakuri/blob/master/lib/botmodules/happiness.ex.
 
 To obtain anonymized and aggregated statistics at any time, type in !happystats. To opt out, type in !happyout. Thank you again!
 "
@@ -33,13 +34,21 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
   def process(message) do
     if Regex.match? ~r/^!happyme/, message.text do
-      Slack.send_direct(message.user_id, @description)
-      SlackDatabase.subscribe_happiness(message.user_id, true)
+      result = SlackDatabase.subscribe_happiness(message.user_id, true)
+      reply = case result do
+                :ok -> @description
+                _ -> "You are already subscribed."
+              end
+      Slack.send_direct(message.user_id, reply)
     end
 
     if Regex.match? ~r/^!happyout/, message.text do
-      Slack.send_direct(message.user_id, @goodbye)
-      SlackDatabase.subscribe_happiness(message.user_id, false)
+      result = SlackDatabase.subscribe_happiness(message.user_id, false)
+      reply = case result do
+                :ok -> @goodbye
+                _ -> "You are already unsubscribed."
+              end
+      Slack.send_direct(message.user_id, reply)
     end
   end
 

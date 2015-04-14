@@ -18,27 +18,25 @@ defmodule SlackDatabase do
   end
 
   def subscribe_happiness(username, subscribed) do
-    GenServer.cast(:database, {:subscribe_happiness, [username, subscribed]})
+    GenServer.call(:database, {:subscribe_happiness, [username, subscribed]})
   end
 
-  def handle_call(_what, _from, state) do
-    {:reply, :ok, state}
+  def handle_call({:subscribe_happiness, data}, _from, state) do
+    [username, subscribed] = data
+    result = Postgrex.Connection.query!(state.db_pid, "SELECT subscribed FROM happiness WHERE username = $1", [username])
+    [command, retval] = if result.num_rows == 0 do
+                ["INSERT INTO happiness(username, subscribed) VALUES($1, $2)", :ok]
+              else
+                {current} = List.first result.rows
+                is_changed = if current != subscribed do :ok else :error end
+                ["UPDATE happiness SET subscribed = $2 WHERE username = $1", is_changed]
+              end
+    Postgrex.Connection.query!(state.db_pid, command, [username, subscribed])
+    {:reply, retval, state}
   end
 
   def handle_cast({:write_message, message}, state) do
     Postgrex.Connection.query!(state.db_pid, "INSERT INTO messages(message) VALUES($1)", [message])
-    {:noreply, state}
-  end
-
-  def handle_cast({:subscribe_happiness, data}, state) do
-    [username, subscribed] = data
-    result = Postgrex.Connection.query!(state.db_pid, "SELECT id FROM happiness WHERE username = $1", [username])
-    command = if result.num_rows == 0 do
-                "INSERT INTO happiness(username, subscribe) VALUES($1, $2)"
-              else
-                "UPDATE happiness SET subscribed = $2 WHERE username = $1"
-              end
-    Postgrex.Connection.query!(state.db_pid, command, [username, subscribed])
     {:noreply, state}
   end
 
