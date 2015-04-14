@@ -24,6 +24,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   @prompt "Hello, this is your friendly neighborhood bot checking in! How are you feeling today? Please type in a number from 1 (very sad) to 5 (very happy).
 
 (If you no longer wish to receive these prompts, then please opt out by typing in !happyout.)"
+  @goodbye "OK! You have opted out of the happiness module (which makes me very sad)."
 
   def doc, do: @moduledoc
 
@@ -32,13 +33,13 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
   def process(message) do
     if Regex.match? ~r/^!happyme/, message.text do
-      # Send the opt-in message to the given user.
       Slack.send_direct(message.user_id, @description)
-      # check if user is already opt'd in
+      SlackDatabase.subscribe_happiness(message.user_id, true)
     end
 
     if Regex.match? ~r/^!happyout/, message.text do
-      # opt out user
+      Slack.send_direct(message.user_id, @goodbye)
+      SlackDatabase.subscribe_happiness(message.user_id, false)
     end
   end
 
