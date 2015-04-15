@@ -13,12 +13,26 @@ defmodule SlackDatabase do
     GenServer.start_link(__MODULE__, :ok, [name: :database])
   end
 
+  ## logging.
   def write_message(message) do
     GenServer.cast(:database, {:write_message, message})
   end
 
+  ## happiness.
+  def save_reply(user_id, value) do
+    GenServer.cast(:database, {:save_reply, [user_id, value]})
+  end
+
   def subscribe_happiness(username, subscribed) do
     GenServer.call(:database, {:subscribe_happiness, [username, subscribed]})
+  end
+
+  def get_happiness_levels do
+    GenServer.call(:database, {:get_happiness_levels, []})
+  end
+
+  def awaiting_reply?(user_id) do
+    GenServer.call(:database, {:awaiting_reply?, [user_id]})
   end
 
   def handle_call({:subscribe_happiness, data}, _from, state) do
@@ -35,8 +49,23 @@ defmodule SlackDatabase do
     {:reply, retval, state}
   end
 
+  def handle_call({:get_happiness_levels, data}, _from, state) do
+    # TODO.
+    {:reply, [5,3,4], state}
+  end
+
+  def handle_call({:awaiting_reply?, data}, _from, state) do
+    # TODO.
+    {:reply, true, state}
+  end
+
   def handle_cast({:write_message, message}, state) do
     Postgrex.Connection.query!(state.db_pid, "INSERT INTO messages(message) VALUES($1)", [message])
+    {:noreply, state}
+  end
+
+  def handle_cast({:save_reply, [user_id, value]}, state) do
+    # TODO.
     {:noreply, state}
   end
 

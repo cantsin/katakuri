@@ -138,7 +138,7 @@ defmodule Client do
     {_, text} = Enum.map_reduce(matches, text, fn(match, acc) ->
       [full, id] = match
       name = Dict.get(ids, id)
-      {id, String.replace(acc, full, name)}
+      {id, String.replace(acc, full, "@" <> name)}
     end)
     %Message{channel: event.channel,
              user: username,
