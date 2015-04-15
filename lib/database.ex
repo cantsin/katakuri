@@ -19,8 +19,16 @@ defmodule SlackDatabase do
   end
 
   ## happiness.
-  def save_reply(user_id, value) do
-    GenServer.cast(:database, {:save_reply, [user_id, value]})
+  def save_reply(value) do
+    GenServer.cast(:database, {:save_reply, [value]})
+  end
+
+  def add_notification(username) do
+    GenServer.cast(:database, {:modify_notifications, [username, :add]})
+  end
+
+  def remove_notification(username) do
+    GenServer.cast(:database, {:modify_notifications, [username, :remove]})
   end
 
   def subscribe_happiness(username, subscribed) do
@@ -31,32 +39,53 @@ defmodule SlackDatabase do
     GenServer.call(:database, {:get_happiness_levels, []})
   end
 
-  def awaiting_reply?(user_id) do
-    GenServer.call(:database, {:awaiting_reply?, [user_id]})
+  def awaiting_reply?(username) do
+    GenServer.call(:database, {:awaiting_reply?, [username]})
   end
 
   def handle_call({:subscribe_happiness, data}, _from, state) do
     [username, subscribed] = data
-    result = Postgrex.Connection.query!(state.db_pid, "SELECT subscribed FROM happiness WHERE username = $1", [username])
+    result = Postgrex.Connection.query!(state.db_pid, "SELECT subscribed FROM subscriptions WHERE username = $1", [username])
     [command, retval] = if result.num_rows == 0 do
-                ["INSERT INTO happiness(username, subscribed) VALUES($1, $2)", :ok]
+                ["INSERT INTO subscriptions(username, subscribed) VALUES($1, $2)", :ok]
               else
                 {current} = List.first result.rows
                 is_changed = if current != subscribed do :ok else :error end
-                ["UPDATE happiness SET subscribed = $2 WHERE username = $1", is_changed]
+                ["UPDATE subscriptions SET subscribed = $2 WHERE username = $1", is_changed]
               end
     Postgrex.Connection.query!(state.db_pid, command, [username, subscribed])
+    if retval do
+      if subscribed do
+        add_notification(username)
+      else
+        remove_notification(username)
+      end
+    end
     {:reply, retval, state}
   end
 
-  def handle_call({:get_happiness_levels, data}, _from, state) do
-    # TODO.
-    {:reply, [5,3,4], state}
+  def handle_call({:get_happiness_levels, []}, _from, state) do
+    result = Postgrex.Connection.query!(state.db_pid, "SELECT value, created FROM happiness", [])
+    {:reply, result.rows, state}
   end
 
-  def handle_call({:awaiting_reply?, data}, _from, state) do
-    # TODO.
-    {:reply, true, state}
+  def handle_call({:awaiting_reply?, [username]}, _from, state) do
+    result = Postgrex.Connection.query!(state.db_pid, "SELECT date FROM notifications WHERE username = $1", [username])
+    if result.num_rows == 0 do
+      {:reply, nil, state}
+    else
+      {date} = List.first result.rows
+      {:reply, date, state}
+    end
+  end
+
+  def handle_cast({:modify_notifications, [username, operation]}, state) do
+    command = case operation do
+                :add -> "INSERT INTO notifications(username) VALUES($1)"
+                :remove -> "DELETE FROM notifications WHERE username = $1"
+              end
+    result = Postgrex.Connection.query!(state.db_pid, command, [username])
+    {:noreply, state}
   end
 
   def handle_cast({:write_message, message}, state) do
@@ -64,8 +93,8 @@ defmodule SlackDatabase do
     {:noreply, state}
   end
 
-  def handle_cast({:save_reply, [user_id, value]}, state) do
-    # TODO.
+  def handle_cast({:save_reply, [value]}, state) do
+    Postgrex.Connection.query!(state.db_pid, "INSERT INTO happiness(value) VALUES($1)", [value])
     {:noreply, state}
   end
 
@@ -76,7 +105,9 @@ defmodule SlackDatabase do
                                                 password: @db_password,
                                                 database: @db_database)
     Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS messages(id serial PRIMARY KEY, message JSON)", [])
-    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS happiness(id serial PRIMARY KEY, username CHARACTER(10), subscribed BOOLEAN)", [])
+    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS subscriptions(id serial PRIMARY KEY, username CHARACTER(10), subscribed BOOLEAN)", [])
+    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS notifications(id serial PRIMARY KEY, username CHARACTER(10), date TIMESTAMPTZ DEFAULT current_timestamp)", [])
+    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS happiness(id serial PRIMARY KEY, value INTEGER, created TIMESTAMPTZ DEFAULT current_timestamp)", [])
     Logger.info "Postgrex enabled."
 
     state = %{db_pid: pid}

@@ -59,11 +59,12 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
       Slack.send_message(message.channel, reply)
     end
 
-    if expecting_reply? message do
+    if expecting_reply? message.channel, message.user_id do
       try do
         case String.to_integer message.text do
           x when x > 0 and x <= 5 ->
-            SlackDatabase.save_reply(message.user_id, x)
+            SlackDatabase.save_reply(x)
+            SlackDatabase.remove_notification(message.user_id)
             Slack.send_direct(message.user_id, "Thank you!")
           _ ->
             Slack.send_direct(message.user_id, "Please give me a value between 1 (very sad) and 5 (very happy).")
@@ -77,10 +78,11 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   def stop(_reason) do
   end
 
-  # make sure we are on a DM and that we are awaiting a reply.
-  defp expecting_reply?(message) do
+  # make sure we are in a DM and that we are awaiting a reply.
+  defp expecting_reply?(channel, user_id) do
     dms = Slack.get_direct_messages
-    awaiting_reply = SlackDatabase.awaiting_reply? message.user_id
-    awaiting_reply and Enum.find(dms, fn dm -> dm.id == message.channel end) |> is_map
+    in_private_conversation = Enum.find(dms, fn dm -> dm.id == channel end) |> is_map
+    awaiting_reply = SlackDatabase.awaiting_reply?(user_id) |> is_map
+    in_private_conversation and awaiting_reply
   end
 end
