@@ -29,6 +29,7 @@ defmodule BotLogger do
           else
             format_chat(ts, username, line) |> format_edited
           end
+        "channel_name" -> format_rename(ts, line)
         _ ->
           "unknown " <> line
           Logger.error "could not format message from event #{inspect event}"
@@ -48,6 +49,10 @@ defmodule BotLogger do
 
   defp format_edited(line) do
     "[edited] " <> line
+  end
+
+  defp format_rename(ts, line) do
+    format_time(ts) <> " " <> line
   end
 
   def format_time(milliseconds) do
