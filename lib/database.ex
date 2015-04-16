@@ -122,8 +122,8 @@ defmodule SlackDatabase do
                                                 password: @db_password,
                                                 database: @db_database)
     Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS messages(id serial PRIMARY KEY, message JSON)", [])
-    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS subscriptions(id serial PRIMARY KEY, username CHARACTER(10), subscribed BOOLEAN)", [])
-    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS notifications(id serial PRIMARY KEY, username CHARACTER(10), date TIMESTAMPTZ)", [])
+    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS subscriptions(id serial PRIMARY KEY, username CHARACTER(9), subscribed BOOLEAN)", [])
+    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS notifications(id serial PRIMARY KEY, username CHARACTER(9), date TIMESTAMPTZ)", [])
     Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS happiness(id serial PRIMARY KEY, value INTEGER, created TIMESTAMPTZ DEFAULT current_timestamp)", [])
     Logger.info "Postgrex enabled."
 

@@ -102,7 +102,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
   defp next_notification do
     notifications = SlackDatabase.get_notifications
-    if Enum.count notifications == 0 do
+    if Enum.count(notifications) == 0 do
       @interval # try again later.
     else
       {_, first_date} = List.first notifications
@@ -122,7 +122,8 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
       SlackDatabase.add_notification(username, @interval)
     end)
 
-    next = max(0, next_notification) + 5 * 60 # add some padding
+    next_time = next_notification
+    next = max(0, next_time) + 5 * 60 # add some padding
     timer_pid = Agent.get(__MODULE__, &Map.get(&1, :timer_pid))
     send(timer_pid, {:refresh, next, self()})
   end
