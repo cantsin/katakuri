@@ -29,11 +29,11 @@ defmodule SlackDatabase do
   end
 
   def add_notification(username, interval) do
-    GenServer.cast(:database, {:modify_notifications, [username, :add]})
+    GenServer.cast(:database, {:add_notification, [username, interval]})
   end
 
   def remove_notification(username) do
-    GenServer.cast(:database, {:modify_notifications, [username, :remove]})
+    GenServer.cast(:database, {:remove_notification, [username]})
   end
 
   def get_notifications do
@@ -41,7 +41,7 @@ defmodule SlackDatabase do
   end
 
   def get_current_notifications do
-
+    GenServer.call(:database, {:get_current_notifications, []})
   end
 
   def subscribe_happiness(username, subscribed) do
@@ -90,12 +90,18 @@ defmodule SlackDatabase do
     {:reply, result.rows, state}
   end
 
-  def handle_cast({:modify_notifications, [username, operation]}, state) do
-    command = case operation do
-                :add -> "INSERT INTO notifications(username) VALUES($1)"
-                :remove -> "DELETE FROM notifications WHERE username = $1"
-              end
-    result = Postgrex.Connection.query!(state.db_pid, command, [username])
+  def handle_call({:get_current_notifications, []}, _from, state) do
+    result = Postgrex.Connection.query!(state.db_pid, "SELECT username, date FROM notifications WHERE date <= NOW()", [])
+    {:reply, result.rows, state}
+  end
+
+  def handle_cast({:remove_notification, [username]}, state) do
+    Postgrex.Connection.query!(state.db_pid, "DELETE FROM notifications WHERE username = $1", [username])
+    {:noreply, state}
+  end
+
+  def handle_cast({:add_notification, [username, interval]}, state) do
+    Postgrex.Connection.query!(state.db_pid, "INSERT INTO notifications(username, date) VALUES($1, NOW() + interval '$2 seconds')", [username, interval])
     {:noreply, state}
   end
 
@@ -117,7 +123,7 @@ defmodule SlackDatabase do
                                                 database: @db_database)
     Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS messages(id serial PRIMARY KEY, message JSON)", [])
     Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS subscriptions(id serial PRIMARY KEY, username CHARACTER(10), subscribed BOOLEAN)", [])
-    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS notifications(id serial PRIMARY KEY, username CHARACTER(10), date TIMESTAMPTZ DEFAULT current_timestamp)", [])
+    Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS notifications(id serial PRIMARY KEY, username CHARACTER(10), date TIMESTAMPTZ)", [])
     Postgrex.Connection.query!(pid, "CREATE TABLE IF NOT EXISTS happiness(id serial PRIMARY KEY, value INTEGER, created TIMESTAMPTZ DEFAULT current_timestamp)", [])
     Logger.info "Postgrex enabled."
 
