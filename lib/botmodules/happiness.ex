@@ -26,11 +26,13 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
 (If you no longer wish to receive these prompts, then please opt out by typing in !happyout.)"
   @goodbye "OK! You have opted out of the happiness module (which makes me very sad)."
+  @interval 5
 
   def doc, do: @moduledoc
 
   def start() do
-    # TODO: start timer
+    {:ok, timer_pid} = Task.start_link(fn -> happy_timer end)
+    Agent.start_link(fn -> %{timer_pid: timer_pid} end, name: __MODULE__)
   end
 
   def process(message) do
@@ -38,7 +40,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
       result = SlackDatabase.subscribe_happiness(message.user_id, true)
       reply = case result do
                 :ok ->
-                  SlackDatabase.add_notification(message.user_id)
+                  SlackDatabase.add_notification(message.user_id, @interval)
                   @description
                 _ ->
                   "You are already subscribed."
@@ -90,11 +92,42 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   def stop(_reason) do
   end
 
-  # make sure we are in a DM and that we are awaiting a reply.
   defp expecting_reply?(channel, user_id) do
     dms = Slack.get_direct_messages
     in_private_conversation = Enum.find(dms, fn dm -> dm.id == channel end) |> is_map
     awaiting_reply = SlackDatabase.awaiting_reply?(user_id) |> is_map
     in_private_conversation and awaiting_reply
+  end
+
+  def next_notification do
+    notifications = SlackDatabase.get_notifications
+    {_, first_date} = List.first notifications
+    next_time = Enum.reduce(notifications, first_date, fn ({_, date}, acc) -> min(date, acc) end)
+    next_time = next_time |> SlackDatabase.timestamp_to_calendar
+    current_time = :calendar.universal_time
+    {days, {hours, minutes, seconds}} = :calendar.time_difference(next_time, current_time)
+    (days * 24 * 60 * 60) + (hours * 60 * 60) + (minutes * 60) + seconds
+  end
+
+  defp query_for_happiness do
+    pending = SlackDatabase.get_current_notifications
+    Enum.iter(pending, fn user ->
+      Slack.send_direct(user.username, @prompt)
+      SlackDatabase.remove_notification(user.username)
+      SlackDatabase.add_notification(user.username, @interval)
+    end)
+
+    next = max(0, next_notification) + 5 * 60 # add some padding
+    timer_pid = Agent.get(__MODULE__, &Map.get(&1, :timer_pid))
+    send(timer_pid, {:refresh, next, self()})
+  end
+
+  defp happy_timer do
+    receive do
+      {:refresh, interval, _} ->
+        :timer.sleep(interval)
+        query_for_happiness
+        happy_timer
+    end
   end
 end

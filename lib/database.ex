@@ -13,6 +13,11 @@ defmodule SlackDatabase do
     GenServer.start_link(__MODULE__, :ok, [name: :database])
   end
 
+  ## generic functions.
+  def timestamp_to_calendar(ts) do
+    {{ts.year, ts.month, ts.day}, {ts.hour, ts.min, ts.sec}}
+  end
+
   ## logging.
   def write_message(message) do
     GenServer.cast(:database, {:write_message, message})
@@ -23,12 +28,20 @@ defmodule SlackDatabase do
     GenServer.cast(:database, {:save_reply, [value]})
   end
 
-  def add_notification(username) do
+  def add_notification(username, interval) do
     GenServer.cast(:database, {:modify_notifications, [username, :add]})
   end
 
   def remove_notification(username) do
     GenServer.cast(:database, {:modify_notifications, [username, :remove]})
+  end
+
+  def get_notifications do
+    GenServer.call(:database, {:get_notifications, []})
+  end
+
+  def get_current_notifications do
+
   end
 
   def subscribe_happiness(username, subscribed) do
@@ -70,6 +83,11 @@ defmodule SlackDatabase do
       {date} = List.first result.rows
       {:reply, date, state}
     end
+  end
+
+  def handle_call({:get_notifications, []}, _from, state) do
+    result = Postgrex.Connection.query!(state.db_pid, "SELECT username, date FROM notifications", [])
+    {:reply, result.rows, state}
   end
 
   def handle_cast({:modify_notifications, [username, operation]}, state) do
