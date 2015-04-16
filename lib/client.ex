@@ -57,7 +57,9 @@ defmodule Client do
       "channel_unarchive" -> channel_unarchive(event) |> Slack.update_channels
       "message" ->
         message = process_message(state.ids, event)
-        Enum.each(state.modules, fn m -> m.process(message) end)
+        if message do
+          Enum.each(state.modules, fn m -> m.process(message) end)
+        end
       "user_typing" -> () # no-op
       "response" -> () # no-op
       "hello" -> () # no-op
@@ -130,23 +132,26 @@ defmodule Client do
     # Slack stores references to names/channels by <@id>. Here, we
     # transform these references to the associated name for ease of
     # debugging and logging.
-    edited = Map.has_key? event, :message
-    text = if edited do event.message.text else event.text end
-    user = if edited do event.message.user else event.user end
-    username = Dict.get(ids, user)
-    matches = Regex.scan(~r/<@([^>|]+).*>/, text)
-    {_, text} = Enum.map_reduce(matches, text, fn(match, acc) ->
-      [full, id] = match
-      name = Dict.get(ids, id)
-      {id, String.replace(acc, full, "@" <> name)}
-    end)
-    %Message{channel: event.channel,
-             user: username,
-             user_id: user,
-             ts: event.ts,
-             text: text,
-             edited: edited,
-             raw: event}
+    try do
+      edited = (Map.has_key? event, :message)
+      text = if edited do event.message.text else event.text end
+      user = if edited do event.message.user else event.user end
+      username = Dict.get(ids, user)
+      matches = Regex.scan(~r/<@([^>|]+).*>/, text)
+      {_, text} = Enum.map_reduce(matches, text, fn(match, acc) ->
+        [full, id] = match
+        name = Dict.get(ids, id)
+        {id, String.replace(acc, full, "@" <> name)}
+      end)
+      %Message{channel: event.channel,
+               user: username,
+               user_id: user,
+               ts: event.ts,
+               text: text,
+               edited: edited,
+               raw: event}
+    rescue _ in KeyError -> nil
+    end
   end
 
   defp process_users(users) do
