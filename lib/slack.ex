@@ -15,7 +15,8 @@ defmodule Slack do
   end
 
   def start_link do
-    Agent.start_link(fn -> Map.new end, name: __MODULE__)
+    {:ok, message_pid} = Task.start_link(fn -> send_throttled_message end)
+    Agent.start_link(fn -> %{message_pid: message_pid} end, name: __MODULE__)
   end
 
   def set_socket(socket) do
@@ -63,7 +64,6 @@ defmodule Slack do
     message_count = Agent.get_and_update(__MODULE__, fn vars ->
       { vars.message_count, Map.put(vars, :message_count, vars.message_count + 1) }
     end)
-    socket = Agent.get(__MODULE__, &Map.get(&1, :socket))
     # Slack imposes certain restrictions on messages, so we'll follow them as well.
     text = String.replace text, ">", "&gt;"
     text = String.replace text, "<", "&lt;"
@@ -74,11 +74,24 @@ defmodule Slack do
                 channel: channel,
                 text: text}
     {:ok, raw} = Poison.encode message
-    :websocket_client.send({:text, raw}, socket)
+    message_pid = Agent.get(__MODULE__, &Map.get(&1, :message_pid))
+    send(message_pid, {:send, raw, self()})
   end
 
   def send_direct(whom, text) do
     channel = Enum.find(get_direct_messages, fn im -> im.user == whom end)
     send_message(channel.id, text)
+  end
+
+  defp send_throttled_message do
+    receive do
+      {:send, message, _} ->
+        socket = Agent.get(__MODULE__, &Map.get(&1, :socket))
+        :websocket_client.send({:text, message}, socket)
+        # the Slack spec says not to send more than once a second, but
+        # we'll experiment with lower values for now.
+        :timer.sleep(250)
+        send_throttled_message
+    end
   end
 end
