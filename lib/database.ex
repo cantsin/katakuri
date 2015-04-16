@@ -54,13 +54,6 @@ defmodule SlackDatabase do
                 ["UPDATE subscriptions SET subscribed = $2 WHERE username = $1", is_changed]
               end
     Postgrex.Connection.query!(state.db_pid, command, [username, subscribed])
-    if retval do
-      if subscribed do
-        add_notification(username)
-      else
-        remove_notification(username)
-      end
-    end
     {:reply, retval, state}
   end
 

@@ -37,8 +37,11 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
     if Regex.match? ~r/^!happyme/, message.text do
       result = SlackDatabase.subscribe_happiness(message.user_id, true)
       reply = case result do
-                :ok -> @description
-                _ -> "You are already subscribed."
+                :ok ->
+                  SlackDatabase.add_notification(message.user_id)
+                  @description
+                _ ->
+                  "You are already subscribed."
               end
       Slack.send_direct(message.user_id, reply)
     end
@@ -46,16 +49,25 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
     if Regex.match? ~r/^!happyout/, message.text do
       result = SlackDatabase.subscribe_happiness(message.user_id, false)
       reply = case result do
-                :ok -> @goodbye
-                _ -> "You are already unsubscribed."
+                :ok ->
+                  SlackDatabase.remove_notification(message.user_id)
+                  @goodbye
+                _ ->
+                  "You are already unsubscribed."
               end
       Slack.send_direct(message.user_id, reply)
     end
 
     if Regex.match? ~r/^!happystats/, message.text do
+      # TODO: make this more sophisticated -- graph the average over time.
       result = SlackDatabase.get_happiness_levels
-      reply = "#{inspect result}"
-      # TODO: metrics?
+      count = Enum.reduce(result, 0, fn({val, _}, acc) -> acc + val end)
+      average = if count == 0 do
+                  0
+                else
+                  count / Enum.count(result)
+                end
+      reply = "Happiness average: #{average}"
       Slack.send_message(message.channel, reply)
     end
 
