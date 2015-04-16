@@ -131,7 +131,10 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   defp happy_timer do
     receive do
       {:refresh, interval, _} ->
-        :timer.sleep(interval)
+        # debugging.
+        general = Slack.get_general_channel
+        Slack.send_message(general.id, "Reloading happiness: timer set to #{interval} seconds")
+        :timer.sleep(interval * 1000)
         query_for_happiness
         happy_timer
     end
