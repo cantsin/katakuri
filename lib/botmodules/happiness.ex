@@ -26,7 +26,8 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
 (If you no longer wish to receive these prompts, then please opt out by typing in !happyout.)"
   @goodbye "OK! You have opted out of the happiness module (which makes me very sad)."
-  @interval 15 # in seconds
+  @polling_interval 15 # in seconds
+  @interval 3 * 24 * 60 * 60 # in seconds
 
   def doc, do: @moduledoc
 
@@ -41,7 +42,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
       result = SlackDatabase.subscribe_happiness(message.user_id, true)
       reply = case result do
                 :ok ->
-                  SlackDatabase.add_notification(message.user_id, @interval)
+                  SlackDatabase.add_notification(message.user_id, random_interval)
                   @description
                 _ ->
                   "You are already subscribed."
@@ -103,7 +104,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   defp next_notification do
     notifications = SlackDatabase.get_notifications
     if Enum.count(notifications) == 0 do
-      @interval # try again later.
+      @polling_interval # try again later.
     else
       {_, first_date} = List.first notifications
       next_time = Enum.reduce(notifications, first_date, fn ({_, date}, acc) -> min(date, acc) end)
@@ -119,7 +120,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
     Enum.each(pending, fn {username, _} ->
       SlackDatabase.remove_notification(username)
       Slack.send_direct(username, @prompt)
-      SlackDatabase.add_notification(username, @interval)
+      SlackDatabase.add_notification(username, random_interval)
     end)
 
     next_time = next_notification
@@ -138,5 +139,9 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
         query_for_happiness
         happy_timer
     end
+  end
+
+  defp random_interval do
+    :random.uniform * @interval + @interval / 2
   end
 end
