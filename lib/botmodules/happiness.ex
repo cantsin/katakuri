@@ -180,15 +180,18 @@ defmodule HappinessDB do
 
   def subscribe(username, subscribed) do
     result = SlackDatabase.query?("SELECT subscribed FROM subscriptions WHERE username = $1", [username])
-    [command, retval] = if result.num_rows == 0 do
-                ["INSERT INTO subscriptions(username, subscribed) VALUES($1, $2)", :ok]
-              else
-                {current} = List.first result.rows
-                is_changed = if current != subscribed do :ok else :error end
-                ["UPDATE subscriptions SET subscribed = $2 WHERE username = $1", is_changed]
-              end
-    SlackDatabase.write!(command, [username, subscribed])
-    retval
+    if result.num_rows == 0 do
+      SlackDatabase.write!("INSERT INTO subscriptions(username, subscribed) VALUES($1, $2)", [username, subscribed])
+      :ok
+    else
+      SlackDatabase.write!("UPDATE subscriptions SET subscribed = $2 WHERE username = $1", [username, subscribed])
+      {current} = List.first result.rows
+      if current != subscribed do
+        :ok
+      else
+        :error
+      end
+    end
   end
 
   def get_happiness_levels do
