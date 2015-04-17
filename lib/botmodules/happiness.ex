@@ -32,6 +32,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   def doc, do: @moduledoc
 
   def start() do
+    HappinessDB.create
     {:ok, timer_pid} = Task.start_link(fn -> happy_timer end)
     Agent.start_link(fn -> %{timer_pid: timer_pid} end, name: __MODULE__)
     query_for_happiness
@@ -39,10 +40,10 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
   def process(message) do
     if Regex.match? ~r/^!happyme/, message.text do
-      result = SlackDatabase.subscribe_happiness(message.user_id, true)
+      result = HappinessDB.subscribe(message.user_id, true)
       reply = case result do
                 :ok ->
-                  SlackDatabase.add_notification(message.user_id, random_interval)
+                  HappinessDB.add_notification(message.user_id, random_interval)
                   @description
                 _ ->
                   "You are already subscribed."
@@ -51,10 +52,10 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
     end
 
     if Regex.match? ~r/^!happyout/, message.text do
-      result = SlackDatabase.subscribe_happiness(message.user_id, false)
+      result = HappinessDB.subscribe(message.user_id, false)
       reply = case result do
                 :ok ->
-                  SlackDatabase.remove_notification(message.user_id)
+                  HappinessDB.remove_notification(message.user_id)
                   @goodbye
                 _ ->
                   "You are already unsubscribed."
@@ -64,7 +65,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
     if Regex.match? ~r/^!happystats/, message.text do
       # TODO: make this more sophisticated -- graph the average over time.
-      result = SlackDatabase.get_happiness_levels
+      result = HappinessDB.get_happiness_levels
       count = Enum.reduce(result, 0, fn({val, _}, acc) -> acc + val end)
       average = if count == 0 do
                   0
@@ -79,8 +80,8 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
       try do
         case String.to_integer message.text do
           x when x > 0 and x <= 5 ->
-            SlackDatabase.save_reply(x)
-            SlackDatabase.remove_notification(message.user_id)
+            HappinessDB.save_reply(x)
+            HappinessDB.remove_notification(message.user_id)
             Slack.send_direct(message.user_id, "Thank you!")
           _ ->
             Slack.send_direct(message.user_id, "Please give me a value between 1 (very sad) and 5 (very happy).")
@@ -97,12 +98,12 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   defp expecting_reply?(channel, user_id) do
     dms = Slack.get_direct_messages
     in_private_conversation = Enum.find(dms, fn dm -> dm.id == channel end) |> is_map
-    awaiting_reply = SlackDatabase.awaiting_reply?(user_id) |> is_map
+    awaiting_reply = HappinessDB.awaiting_reply?(user_id) |> is_map
     in_private_conversation and awaiting_reply
   end
 
   defp next_notification do
-    notifications = SlackDatabase.get_notifications
+    notifications = HappinessDB.get_notifications
     if Enum.count(notifications) == 0 do
       @polling_interval # try again later.
     else
@@ -116,11 +117,11 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   end
 
   defp query_for_happiness do
-    pending = SlackDatabase.get_current_notifications
+    pending = HappinessDB.get_current_notifications
     Enum.each(pending, fn {username, _} ->
-      SlackDatabase.remove_notification(username)
+      HappinessDB.remove_notification(username)
       Slack.send_direct(username, @prompt)
-      SlackDatabase.add_notification(username, random_interval)
+      HappinessDB.add_notification(username, random_interval)
     end)
 
     next_time = next_notification
@@ -133,8 +134,8 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
     receive do
       {:refresh, interval, _} ->
         # debugging.
-        general = Slack.get_general_channel
-        Slack.send_message(general.id, "Reloading happiness: timer set to #{interval} seconds")
+        # general = Slack.get_general_channel
+        # Slack.send_message(general.id, "Reloading happiness: timer set to #{interval} seconds")
         :timer.sleep(interval * 1000)
         query_for_happiness
         happy_timer
@@ -143,5 +144,65 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
   defp random_interval do
     :random.uniform * @interval + @interval / 2
+  end
+end
+
+defmodule HappinessDB do
+  @behaviour BotModule.DB
+
+  def create do
+    SlackDatabase.write!("CREATE TABLE IF NOT EXISTS subscriptions(id serial PRIMARY KEY, username CHARACTER(9), subscribed BOOLEAN)")
+    SlackDatabase.write!("CREATE TABLE IF NOT EXISTS notifications(id serial PRIMARY KEY, username CHARACTER(9), date TIMESTAMPTZ)")
+    SlackDatabase.write!("CREATE TABLE IF NOT EXISTS happiness(id serial PRIMARY KEY, value INTEGER, created TIMESTAMPTZ DEFAULT current_timestamp)")
+  end
+
+  def save_reply(value) do
+    SlackDatabase.write!("INSERT INTO happiness(value) VALUES($1)", [value])
+  end
+
+  def add_notification(username, interval) do
+    SlackDatabase.write!("INSERT INTO notifications(username, date) VALUES($1, NOW() + interval '$2 seconds')", [username, interval])
+  end
+
+  def remove_notification(username) do
+    SlackDatabase.write!("DELETE FROM notifications WHERE username = $1", [username])
+  end
+
+  def get_notifications do
+    result = SlackDatabase.query?("SELECT username, date FROM notifications")
+    result.rows
+  end
+
+  def get_current_notifications do
+    result = SlackDatabase.query?("SELECT username, date FROM notifications WHERE date <= NOW()")
+    result.rows
+  end
+
+  def subscribe(username, subscribed) do
+    result = SlackDatabase.query?("SELECT subscribed FROM subscriptions WHERE username = $1", [username])
+    [command, retval] = if result.num_rows == 0 do
+                ["INSERT INTO subscriptions(username, subscribed) VALUES($1, $2)", :ok]
+              else
+                {current} = List.first result.rows
+                is_changed = if current != subscribed do :ok else :error end
+                ["UPDATE subscriptions SET subscribed = $2 WHERE username = $1", is_changed]
+              end
+    SlackDatabase.write!(command, [username, subscribed])
+    retval
+  end
+
+  def get_happiness_levels do
+    result = SlackDatabase.query?("SELECT value, created FROM happiness")
+    result.rows
+  end
+
+  def awaiting_reply?(username) do
+    result = SlackDatabase.query?("SELECT date FROM notifications WHERE username = $1", [username])
+    if result.num_rows == 0 do
+      nil
+    else
+      {date} = List.first result.rows
+      date
+    end
   end
 end

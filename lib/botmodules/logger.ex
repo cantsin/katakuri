@@ -7,11 +7,11 @@ defmodule BotLogger do
   def doc, do: @moduledoc
 
   def start() do
-
+    LoggerDB.create
   end
 
   def process(message) do
-    SlackDatabase.write_message(message.raw)
+    LoggerDB.write_message(message.raw)
     line = format_message(message.raw, message.ts, message.user, message.text)
     Logger.info line
   end
@@ -65,5 +65,17 @@ defmodule BotLogger do
 
   def stop(_reason) do
 
+  end
+end
+
+defmodule LoggerDB do
+  @behaviour BotModule.DB
+
+  def create do
+    SlackDatabase.write!("CREATE TABLE IF NOT EXISTS messages(id serial PRIMARY KEY, message JSON)")
+  end
+
+  def write_message(message) do
+    SlackDatabase.write!("INSERT INTO messages(message) VALUES($1)", [message])
   end
 end

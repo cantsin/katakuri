@@ -17,3 +17,10 @@ defmodule BotModule do
   @doc "Cleanup, if applicable."
   defcallback stop(reason :: String)
 end
+
+defmodule BotModule.DB do
+  use Behaviour
+
+  @doc "Create database tables."
+  defcallback create()
+end
