@@ -10,7 +10,7 @@ defmodule Client do
   end
 
   def init([info], socket) do
-    Logger.info "Slack client started with #{inspect info}"
+    Logger.info "Slack client started."
 
     # Set up the Slack agent.
     Slack.start_link()
@@ -155,7 +155,8 @@ defmodule Client do
 
   defp process_users(users) do
     Enum.map(users, fn u ->
-      %Slack.User{id: u.id, name: u.name, status: u.status, presence: u.presence}
+      status = if u.deleted do "deleted" else u.status end
+      %Slack.User{id: u.id, name: u.name, status: status, presence: u.presence}
     end)
   end
 
