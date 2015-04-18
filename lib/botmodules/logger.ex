@@ -10,7 +10,7 @@ defmodule BotLogger do
     LoggerDB.create
   end
 
-  def process(message) do
+  def process_message(message) do
     LoggerDB.write_message(message.raw)
     line = format_message(message.raw, message.ts, message.user, message.text)
     Logger.info line

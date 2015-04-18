@@ -31,14 +31,14 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
   def doc, do: @moduledoc
 
-  def start() do
+  def start do
     HappinessDB.create
     {:ok, timer_pid} = Task.start_link(fn -> happy_timer end)
     Agent.start_link(fn -> %{timer_pid: timer_pid} end, name: __MODULE__)
     query_for_happiness
   end
 
-  def process(message) do
+  def process_message(message) do
     if Regex.match? ~r/^!happyme/, message.text do
       result = HappinessDB.subscribe(message.user_id, true)
       reply = case result do

@@ -9,8 +9,8 @@ defmodule Client do
     defstruct [:channel, :user, :user_id, :ts, :text, :edited, :raw]
   end
 
-  def init([info, modules], socket) do
-    Logger.info "Slack client started with #{inspect [info, modules]}"
+  def init([info], socket) do
+    Logger.info "Slack client started with #{inspect info}"
 
     # Set up the Slack agent.
     Slack.start_link()
@@ -26,11 +26,10 @@ defmodule Client do
     # Set up our state.
     raw_ids = Enum.map(users ++ channels, fn i -> {i.id, i.name} end)
     ids = Enum.into(raw_ids, %{})
-    state = %{modules: modules,
-              ids: ids}
+    state = %{ids: ids}
 
-    # Initialize modules.
-    Enum.each(state.modules, fn m -> m.start() end)
+    # Notify any modules that we are ready to begin.
+    BotModuleManager.start
 
     {:ok, state}
   end
@@ -58,7 +57,7 @@ defmodule Client do
       "message" ->
         message = process_message(state.ids, event)
         if message do
-          Enum.each(state.modules, fn m -> m.process(message) end)
+          BotModuleManager.process_message message
         end
       "user_typing" -> () # no-op
       "response" -> () # no-op
@@ -78,9 +77,9 @@ defmodule Client do
     {:ok, state}
   end
 
-  def websocket_terminate(reason, _connection, state) do
+  def websocket_terminate(reason, _connection, _state) do
     Logger.info "Slack client terminated with reason #{reason}"
-    Enum.each(state.modules, fn m -> m.stop(reason) end)
+    BotModuleManager.stop reason
     :ok
   end
 

@@ -5,14 +5,14 @@ defmodule BotWelcome do
 
   def doc, do: @moduledoc
 
-  def start() do
+  def start do
     :random.seed(:os.timestamp)
     channel = Slack.get_general_channel()
     message = "I am your friendly bot, " <> (@greetings |> Enum.shuffle |> List.first) <> "!"
     Slack.send_message(channel.id, message)
   end
 
-  def process(message) do
+  def process_message(message) do
     if Regex.match? ~r/^!help/, message.text do
       starting = "I'm always happy to help! Here are my currently loaded modules:\n"
       moduledocs = Enum.map(Katakuri.modules, fn m ->
@@ -25,8 +25,6 @@ defmodule BotWelcome do
   end
 
   def stop(_reason) do
-    channel = Slack.get_general_channel()
-    message = "Something went wrong! But don't worry, I'll be back..."
-    Slack.send_message(channel.id, message)
+
   end
 end

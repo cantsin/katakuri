@@ -16,7 +16,7 @@ defmodule BotMotd do
     String.strip message
   end
 
-  def process(message) do
+  def process_message(message) do
     if Regex.match? ~r/^!motd/, message.text do
       Slack.send_message(message.channel, get_motd())
     end
