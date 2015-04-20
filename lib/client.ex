@@ -54,6 +54,7 @@ defmodule Client do
       "channel_deleted" -> channel_deleted(event) |> Slack.update_channels
       "channel_archive" -> channel_archive(event) |> Slack.update_channels
       "channel_unarchive" -> channel_unarchive(event) |> Slack.update_channels
+      "im_created" -> direct_message_created(event) |> Slack.update_direct_messages
       "message" ->
         message = process_message(state.ids, event)
         if message do
@@ -125,6 +126,14 @@ defmodule Client do
     channels = Slack.get_channels()
     {:ok, channel} = find_by_id(channels, event.channel)
     List.delete(channels, channel)
+  end
+
+  defp direct_message_created(event) do
+    direct_messages = Slack.get_direct_messages()
+    direct_message = %Slack.DirectMessage{id: event.channel.id,
+                                          user: event.user,
+                                          is_open: false}
+    direct_messages ++ [direct_message]
   end
 
   def process_message(ids, event) do
