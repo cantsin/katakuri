@@ -7,9 +7,12 @@ defmodule BotWelcome do
 
   def start do
     :random.seed(:os.timestamp)
-    channel = Slack.get_general_channel()
-    message = "I am your friendly bot, " <> (@greetings |> Enum.shuffle |> List.first) <> "!"
-    Slack.send_message(channel.id, message)
+    # because this can be annoying.
+    if Katakuri.emit_greeting do
+      channel = Slack.get_general_channel()
+      message = "I am your friendly bot, " <> (@greetings |> Enum.shuffle |> List.first) <> "!"
+      Slack.send_message(channel.id, message)
+    end
   end
 
   def process_message(message) do
