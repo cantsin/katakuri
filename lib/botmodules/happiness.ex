@@ -68,7 +68,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
       result = HappinessDB.get_happiness_levels
       count = Enum.reduce(result, 0, fn({val, _}, acc) -> acc + val end)
       average = if count == 0 do
-                  0
+                  "not enough data!"
                 else
                   count / Enum.count(result)
                 end

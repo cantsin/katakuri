@@ -80,7 +80,12 @@ defmodule Slack do
 
   def send_direct(whom, text) do
     channel = Enum.find(get_direct_messages, fn im -> im.user == whom end)
-    send_message(channel.id, text)
+    if channel != nil do
+      send_message(channel.id, text)
+      {:ok}
+    else
+      {:error, :no_direct_message}
+    end
   end
 
   defp send_throttled_message do
