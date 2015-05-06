@@ -1,12 +1,27 @@
 defmodule SlackServer do
+
   use GenServer
 
-  @url "https://slack.com/api/rtm.start?token="
+  require Logger
 
-  def start_link([token]) do
-    GenServer.start_link(__MODULE__, {}, [name: :server])
-    {:ok, raw_result} = process_token(token)
+  @url "https://slack.com/api/"
+
+  def start_link(args) do
+    HTTPotion.start
+    GenServer.start_link(__MODULE__, args, [name: :server])
+  end
+
+  def init([token]) do
+    {:ok, raw_result} = connect(token)
     {:ok, _} = :websocket_client.start_link(raw_result.url, Client, [raw_result])
+    state = %{token: token}
+    {:ok, state}
+  end
+
+  def handle_call({:open_direct_message, [whom, text]}, _from, state) do
+    response = HTTPotion.get(@url <> "chat.postMessage?token=" <> state.token <> "&channel=" <> whom <> "&text=" <> text)
+    {:ok, _} = Poison.Parser.parse(response.body, keys: :atoms)
+    {:reply, :ok, state}
   end
 
   def handle_call(_what, _from, state) do
@@ -17,10 +32,13 @@ defmodule SlackServer do
     {:noreply, state}
   end
 
-  defp process_token(token) do
-    HTTPotion.start
-    response = HTTPotion.get(@url <> token)
+  defp connect(token) do
+    response = HTTPotion.get(@url <> "rtm.start?token=" <> token)
     Poison.Parser.parse(response.body, keys: :atoms)
+  end
+
+  def open_direct_message(whom, text) do
+    GenServer.call(:server, {:open_direct_message, [whom, text]})
   end
 end
 
