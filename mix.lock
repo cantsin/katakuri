@@ -5,6 +5,6 @@
   "logger_file_backend": {:git, "git://github.com/onkel-dirtus/logger_file_backend.git", "2643f311072d98516551ceb6456fd3ad32ac3db4", []},
   "loggerfilebackend": {:git, "git://github.com/onkel-dirtus/logger_file_backend.git", "2643f311072d98516551ceb6456fd3ad32ac3db4", []},
   "mixunit": {:hex, :mixunit, "0.9.1"},
-  "poison": {:git, "git://github.com/devinus/poison.git", "f293cf6e6697b6a1ed1db9c9ec4abfb0de204ef8", []},
+  "poison": {:git, "git://github.com/devinus/poison.git", "1f1f845f66644e3df125ccd9213f687496c4ad16", []},
   "postgrex": {:hex, :postgrex, "0.8.1"},
-  "websocket_client": {:git, "git://github.com/jeremyong/websocket_client.git", "f465f229958293949e4a192bea65a7e47bb2f762", []}}
+  "websocket_client": {:git, "git://github.com/jeremyong/websocket_client.git", "f6892c8b55004008ce2d52be7d98b156f3e34569", []}}
