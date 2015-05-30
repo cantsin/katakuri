@@ -59,6 +59,8 @@ defmodule Client do
         message = process_message(state.ids, event)
         if message do
           BotModuleManager.process_message message
+        else
+          Logger.error "could not process message with args: ids #{state.ids} and event #{event}"
         end
       "user_typing" -> () # no-op
       "response" -> () # no-op
@@ -158,7 +160,9 @@ defmodule Client do
                text: text,
                edited: edited,
                raw: event}
-    rescue _ in KeyError -> nil
+    rescue
+      _ in KeyError -> nil
+      _ in ArgumentError -> nil
     end
   end
 
