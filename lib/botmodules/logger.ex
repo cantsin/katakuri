@@ -30,6 +30,8 @@ defmodule BotLogger do
             format_chat(ts, username, line) |> format_edited
           end
         "channel_name" -> format_rename(ts, line)
+        "channel_join" -> format_join(ts, event.text)
+        "file_share" -> format_file_share(ts, event)
         _ ->
           "unknown " <> line
           Logger.error "could not format message from event #{inspect event}"
@@ -37,6 +39,10 @@ defmodule BotLogger do
     else
       format_chat(ts, username, line)
     end
+  end
+
+  defp format_join(ts, line) do
+    format_time(ts) <> " * " <> line
   end
 
   defp format_me(ts, username, line) do
@@ -53,6 +59,10 @@ defmodule BotLogger do
 
   defp format_rename(ts, line) do
     format_time(ts) <> " " <> line
+  end
+
+  defp format_file_share(ts, event) do
+    format_time(ts) <> " " <> event.text <> " (" <> event.file.url <> ")"
   end
 
   def format_time(milliseconds) do

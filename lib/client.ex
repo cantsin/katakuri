@@ -64,7 +64,7 @@ defmodule Client do
       "response" -> () # no-op
       "hello" -> () # no-op
       _ ->
-        Logger.error "unknown event type: #{event.type}"
+        Logger.warn "unknown event type: #{event.type}"
     end
 
     {:ok, state}
