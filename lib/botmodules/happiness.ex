@@ -29,12 +29,14 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
   @polling_interval 15 # in seconds
   @interval 3 * 24 * 60 * 60 # in seconds
 
+  require Logger
+
   def doc, do: @moduledoc
 
   def start do
     HappinessDB.create
-    {:ok, timer_pid} = Task.start_link(fn -> happy_timer end)
-    Agent.start_link(fn -> %{timer_pid: timer_pid} end, name: __MODULE__)
+    {:ok, timer_pid} = Task.start(fn -> happy_timer() end)
+    Agent.start_link(fn -> %{timer_pid: timer_pid} end, name: :happiness_timer)
     query_for_happiness
   end
 
@@ -126,19 +128,16 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
 
     next_time = next_notification
     next = max(0, next_time) + 5 * 60 # add some padding
-    timer_pid = Agent.get(__MODULE__, &Map.get(&1, :timer_pid))
+    timer_pid = Agent.get(:happiness_timer, &Map.get(&1, :timer_pid))
     send(timer_pid, {:refresh, next, self()})
   end
 
-  defp happy_timer do
+  defp happy_timer() do
     receive do
       {:refresh, interval, _} ->
-        # debugging.
-        # general = Slack.get_general_channel
-        # Slack.send_message(general.id, "Reloading happiness: timer set to #{interval} seconds")
         :timer.sleep(interval * 1000)
         query_for_happiness
-        happy_timer
+        happy_timer()
     end
   end
 
