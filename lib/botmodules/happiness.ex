@@ -85,6 +85,7 @@ To obtain anonymized and aggregated statistics at any time, type in !happystats.
             HappinessDB.save_reply(x)
             HappinessDB.remove_notification(message.user_id)
             Slack.send_direct(message.user_id, "Thank you!")
+            HappinessDB.add_notification(message.user_id, random_interval)
           _ ->
             Slack.send_direct(message.user_id, "Please give me a value between 1 (very sad) and 5 (very happy).")
         end
@@ -149,6 +150,8 @@ end
 defmodule HappinessDB do
   @behaviour BotModule.DB
 
+  require Logger
+
   def create do
     SlackDatabase.write!("CREATE TABLE IF NOT EXISTS subscriptions(id serial PRIMARY KEY, username CHARACTER(9), subscribed BOOLEAN)")
     SlackDatabase.write!("CREATE TABLE IF NOT EXISTS notifications(id serial PRIMARY KEY, username CHARACTER(9), date TIMESTAMPTZ)")
@@ -160,7 +163,8 @@ defmodule HappinessDB do
   end
 
   def add_notification(username, interval) do
-    SlackDatabase.write!("INSERT INTO notifications(username, date) VALUES($1, NOW() + interval '$2 seconds')", [username, interval])
+    # TODO: for some reason, '$2' is not inserted correctly. so do it manually (i know, i know.)
+    SlackDatabase.write!("INSERT INTO notifications(username, date) VALUES($1, NOW() + interval '" <> "#{round interval}" <> " seconds')", [username])
   end
 
   def remove_notification(username) do
