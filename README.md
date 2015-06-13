@@ -13,3 +13,7 @@ Currently there are four modules:
 - logger: Logs all messages.
 - motd: Message of the day.
 - happiness: (in progress) Quantify happiness levels of subscribers over time.
+
+There is a mix task provided to start the bot. Simply run:
+
+> mix StartBot -t <slack_api_token>
