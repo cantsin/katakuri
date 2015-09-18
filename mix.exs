@@ -9,7 +9,7 @@ defmodule Katakuri.Mixfile do
   end
 
   def application do
-    [applications: [:logger]]
+    [applications: [:logger, :tzdata]]
   end
 
   defp deps do
@@ -18,7 +18,8 @@ defmodule Katakuri.Mixfile do
      {:httpotion, "~> 2.0.0"},
      {:poison, github: "devinus/poison"},
      {:postgrex, "~> 0.8"},
-     {:logger_file_backend, github: "onkel-dirtus/logger_file_backend"}
+     {:logger_file_backend, github: "onkel-dirtus/logger_file_backend"},
+     {:timex, "~> 0.19.4"}
     ]
   end
 end

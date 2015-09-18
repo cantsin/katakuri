@@ -1,4 +1,6 @@
 defmodule BotLastSeen do
+  use Timex
+
   @behaviour BotModule
   @moduledoc "Report when an user was last seen."
 
@@ -23,9 +25,10 @@ defmodule BotLastSeen do
           else
             # TODO: anonymize private channel names.
             {where, time} = List.last rows
-            ts = String.to_float time
-            # TODO: calculate relative time
-            "#{nick} was last seen in ${where}"
+            ts = time |> String.to_float |> Time.to_timestamp(:secs)
+            diff = Time.sub(Time.now, ts) |> Date.from(:timestamp)
+            elapsed = format_time_difference diff
+            "#{nick} was last seen in #{where} #{elapsed}"
           end
         end
       Slack.send_message(message.channel, message)
@@ -39,6 +42,40 @@ defmodule BotLastSeen do
 
   def stop(_reason) do
 
+  end
+
+  defp pluralize(n, str) do
+    if n != 0 do str <> "s" else str end
+  end
+
+  defp format_time_difference(diff) do
+    year = diff.year - 1970
+    str = ""
+    if year != 0 do
+      p = pluralize(year, "year")
+      str = "#{year} #{p} "
+    end
+    if diff.month != 0 do
+      p = pluralize(diff.month, "month")
+      str = str <> "#{diff.month} #{p} "
+    end
+    if diff.day != 0 do
+      p = pluralize(diff.day, "day")
+      str = str <> "#{diff.day} #{p} "
+    end
+    if diff.hour != 0 do
+      p = pluralize(diff.hour, "hour")
+      str = str <> "#{diff.hour} #{p} "
+    end
+    if diff.minute != 0 do
+      p = pluralize(diff.minute, "minute")
+      str = str <> "#{diff.minute} #{p} "
+    end
+    if (String.length str) != 0 do
+      str <> "ago"
+    else
+      "just now"
+    end
   end
 end
 
