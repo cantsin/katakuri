@@ -45,7 +45,7 @@ end
 defmodule Katakuri do
   import Supervisor.Spec
 
-  @modules [BotWelcome, BotMotd, BotLogger, BotHappiness, BotExtraneous]
+  @modules [BotWelcome, BotMotd, BotLogger, BotHappiness, BotLastSeen, BotExtraneous]
 
   def modules, do: @modules
   def emit_greeting, do: false

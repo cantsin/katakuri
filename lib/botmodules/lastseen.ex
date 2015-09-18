@@ -16,7 +16,6 @@ defmodule BotLastSeen do
       users = Slack.get_users
       user = Enum.find(users, fn(user) -> user.name == nick end)
       user_id = user.id
-      IO.inspect user_id
       msg =
         if user_id == nil do
           "#{nick} does not seem to be an user here."
@@ -29,10 +28,11 @@ defmodule BotLastSeen do
             ts = time |> String.to_float |> Time.to_timestamp(:secs)
             diff = Time.sub(Time.now, ts) |> Date.from(:timestamp)
             elapsed = format_time_difference diff
-            # TODO: anonymize private channel names.
             channels = Slack.get_channels
             channel = Enum.find(channels, fn(channel) -> channel.id == where end)
-            "#{nick} was last seen in ##{channel.name} #{elapsed}"
+            channel_name =
+              if channel == nil do "a private channel" else "#" <> channel.name end
+            "#{nick} was last seen in #{channel_name} #{elapsed}"
           end
         end
       Slack.send_message(message.channel, msg)
@@ -50,7 +50,7 @@ defmodule BotLastSeen do
 
   defp pluralize(n, str) do
     # overly simple: does not account for 'y' and definitely not unicode-aware!
-    if n != 0 do str <> "s" else str end
+    if n != 1 do str <> "s" else str end
   end
 
   defp format_time_difference(diff) do
@@ -60,11 +60,11 @@ defmodule BotLastSeen do
       p = pluralize(year, "year")
       str = "#{year} #{p} "
     end
-    if diff.month != 0 do
+    if diff.month != 1 do
       p = pluralize(diff.month, "month")
       str = str <> "#{diff.month} #{p} "
     end
-    if diff.day != 0 do
+    if diff.day != 1 do
       p = pluralize(diff.day, "day")
       str = str <> "#{diff.day} #{p} "
     end
