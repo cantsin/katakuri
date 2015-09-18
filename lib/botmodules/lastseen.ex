@@ -14,24 +14,28 @@ defmodule BotLastSeen do
     if Regex.match? ~r/^!lastseen ([^ ]+)$/, message.text do
       [_, nick] = Regex.run ~r/^!lastseen ([^ ]+)$/, message.text
       users = Slack.get_users
-      user_id = Enum.find(users, fn(user) -> user.name == nick end)
-      message =
+      user = Enum.find(users, fn(user) -> user.name == nick end)
+      user_id = user.id
+      IO.inspect user_id
+      msg =
         if user_id == nil do
           "#{nick} does not seem to be an user here."
         else
           rows = LastSeenDB.query_user user_id
-          if rows == nil do
+          if (Enum.count rows) == 0 do
             "I've never seen #{nick} anywhere."
           else
-            # TODO: anonymize private channel names.
             {where, time} = List.last rows
             ts = time |> String.to_float |> Time.to_timestamp(:secs)
             diff = Time.sub(Time.now, ts) |> Date.from(:timestamp)
             elapsed = format_time_difference diff
-            "#{nick} was last seen in #{where} #{elapsed}"
+            # TODO: anonymize private channel names.
+            channels = Slack.get_channels
+            channel = Enum.find(channels, fn(channel) -> channel.id == where end)
+            "#{nick} was last seen in ##{channel.name} #{elapsed}"
           end
         end
-      Slack.send_message(message.channel, message)
+      Slack.send_message(message.channel, msg)
     else
       if Regex.match? ~r/^!lastseen/, message.text do
         help = "usage: !lastseen <nick>"
@@ -45,6 +49,7 @@ defmodule BotLastSeen do
   end
 
   defp pluralize(n, str) do
+    # overly simple: does not account for 'y' and definitely not unicode-aware!
     if n != 0 do str <> "s" else str end
   end
 
@@ -82,8 +87,12 @@ end
 defmodule LastSeenDB do
   @behaviour BotModule.DB
 
+  def create do
+
+  end
+
   def query_user(user_id) do
-    result = SlackDatabase.query?("SELECT message->'user', message->'ts' FROM messages WHERE message ->> 'user' = '$1'", [user_id])
+    result = SlackDatabase.query?("SELECT message->'channel', message->'ts' FROM messages WHERE message ->> 'user' = $1 ORDER BY id", [user_id])
     result.rows
   end
 end
