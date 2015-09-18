@@ -26,7 +26,8 @@ defmodule BotLastSeen do
           else
             {where, time} = List.last rows
             ts = time |> String.to_float |> Time.to_timestamp(:secs)
-            diff = Time.sub(Time.now, ts) |> Date.from(:timestamp)
+            current_ts = message.ts |> String.to_float |> Time.to_timestamp(:secs)
+            diff = Time.sub(current_ts, ts) |> Date.from(:timestamp)
             elapsed = format_time_difference diff
             channels = Slack.get_channels
             channel = Enum.find(channels, fn(channel) -> channel.id == where end)
@@ -38,7 +39,7 @@ defmodule BotLastSeen do
       Slack.send_message(message.channel, msg)
     else
       if Regex.match? ~r/^!lastseen/, message.text do
-        help = "usage: !lastseen <nick>"
+        help = "usage: !lastseen nickname"
         Slack.send_message(message.channel, help)
       end
     end
