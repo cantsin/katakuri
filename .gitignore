@@ -4,3 +4,6 @@ erl_crash.dump
 *.ez
 /katakuri.log
 /error.log
+/GPATH
+/GRTAGS
+/GTAGS
