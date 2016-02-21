@@ -14,7 +14,7 @@
   "mimerl": {:hex, :mimerl, "1.0.2"},
   "mixunit": {:hex, :mixunit, "0.9.1"},
   "poison": {:git, "https://github.com/devinus/poison.git", "7a7882e8b9877c8868eabaa6b005c813f8d6dc6b", []},
-  "postgrex": {:hex, :postgrex, "0.11.1"},
+  "postgrex": {:hex, :postgrex, "0.8.4"},
   "ssl_verify_hostname": {:hex, :ssl_verify_hostname, "1.0.5"},
   "timex": {:hex, :timex, "1.0.1"},
   "tzdata": {:hex, :tzdata, "0.5.6"},
