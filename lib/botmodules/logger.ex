@@ -62,7 +62,7 @@ defmodule BotLogger do
   end
 
   defp format_file_share(ts, event) do
-    format_time(ts) <> " " <> event.text <> " (" <> event.file.url <> ")"
+    format_time(ts) <> " " <> event.text <> " (" <> event.file.url_private <> ")"
   end
 
   def format_time(milliseconds) do
